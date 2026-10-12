@@ -17,6 +17,10 @@ function cell(col, row) {
   return td;
 }
 
+// Served by the Node server (live ESPN data) or as static JSON on GitHub Pages.
+let staticMode = false;
+const apiUrl = (path) => (staticMode ? `data/${path || 'analyses'}.json` : `api/analyses${path ? '/' + path : ''}`);
+
 async function show(a) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.id === a.id));
   $('desc').textContent = a.description;
@@ -25,7 +29,7 @@ async function show(a) {
   $('status').className = 'muted';
   $('status').textContent = 'Loading from ESPN… (first load can take a few seconds)';
   try {
-    const res = await fetch(`/api/analyses/${a.id}`);
+    const res = await fetch(apiUrl(a.id));
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     $('status').textContent = `Seasons: ${data.seasons.slice().sort().join(', ')}`;
@@ -49,7 +53,12 @@ async function show(a) {
 }
 
 (async () => {
-  const list = await (await fetch('/api/analyses')).json();
+  let res = await fetch(apiUrl()).catch(() => null);
+  if (!res || !res.ok || !(res.headers.get('content-type') || '').includes('json')) {
+    staticMode = true;
+    res = await fetch(apiUrl());
+  }
+  const list = await res.json();
   for (const a of list) {
     const b = document.createElement('button');
     b.textContent = a.title;
