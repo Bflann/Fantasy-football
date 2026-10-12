@@ -14,17 +14,20 @@ async function loadGames() {
   const first = Number(process.env.START_YEAR) || last - 20;
   const games = [];
   const seasons = [];
+  const notes = [];
   for (let y = last; y >= first; y--) {
     try {
       const raw = await fetchSeason(leagueId, y, creds);
       const g = normalizeSeason(y, raw);
+      notes.push(`${y}: ${g.length} completed team-weeks`);
       if (g.length) { games.push(...g); seasons.push(y); }
     } catch (e) {
+      notes.push(`${y}: ${e.message}`);
       if (e.code === 'AUTH' || e.code === 'CONFIG') throw e;
       if (seasons.length || y < last - 1) break; // walked past the league's first year
     }
   }
-  if (!games.length) throw Object.assign(new Error('No completed games found for that league.'), { code: 'EMPTY' });
+  if (!games.length) throw Object.assign(new Error(`No completed games found for that league.\n${notes.join('\n')}`), { code: 'EMPTY' });
   cache = { at: Date.now(), games, seasons };
   return games;
 }
