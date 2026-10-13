@@ -17,14 +17,22 @@ async function request(url, { espnS2, swid } = {}, extraHeaders = {}) {
   const headers = { Accept: 'application/json', 'User-Agent': 'fantasy-football-analyzer', ...extraHeaders };
   const clean = (v) => (v || '').replace(/\s+/g, '').replace(/^["']|["']$/g, '');
   if (clean(espnS2) && clean(swid)) headers.Cookie = `espn_s2=${clean(espnS2)}; SWID=${clean(swid)}`;
+  // ESPN occasionally drops a request or answers 5xx; retry those briefly so a blip doesn't
+  // silently remove a whole season from the results.
   let res;
-  try {
-    res = await fetch(url, { headers });
-  } catch (err) {
-    const c = err.cause || {};
-    const e = new Error(`network error: ${c.code || c.message || err.message}`);
-    e.code = 'NETWORK';
-    throw e;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(url, { headers });
+      if (res.status < 500 || attempt >= 2) break;
+    } catch (err) {
+      if (attempt >= 2) {
+        const c = err.cause || {};
+        const e = new Error(`network error: ${c.code || c.message || err.message}`);
+        e.code = 'NETWORK';
+        throw e;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
   }
   if (res.status === 401 || res.status === 403) {
     const e = new Error('ESPN says this league is private. Set ESPN_S2 and SWID in .env.');

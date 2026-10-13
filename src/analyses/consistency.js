@@ -94,8 +94,6 @@ module.exports = {
         { key: 'games', label: 'Games', type: 'num' },
         { key: 'variation', label: 'Variation %', type: 'num' },
         { key: 'median', label: 'Median', type: 'num' },
-        { key: 'min', label: 'Low', type: 'num' },
-        { key: 'max', label: 'High', type: 'num' },
       ],
       rows,
       summary: rows.length

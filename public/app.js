@@ -7,7 +7,7 @@ const ownerHref = (slug) => `#owner/${slug}`;
 // Inline box-and-whisker plot on an axis shared by every row (col.axis) so rows compare directly.
 function boxPlot(box, { min, max }) {
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 240, H = 26, PAD = 6, MID = H / 2;
+  const W = 300, H = 26, PAD = 6, MID = H / 2;
   const x = (v) => PAD + ((v - min) / (max - min || 1)) * (W - 2 * PAD);
   const mk = (tag, attrs) => {
     const n = document.createElementNS(NS, tag);
