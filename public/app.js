@@ -55,6 +55,33 @@ function stripPlot({ values, actual }, { min, max }) {
   return svg;
 }
 
+// Weekly scores as a line, with the league average that week as a dotted line.
+function sparkline({ points, avg, weeks }) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 220, H = 40, PX = 6, PY = 5;
+  // Each row is scaled to its own range so the shape reads clearly; the dotted line keeps league context.
+  const all = [...points, ...avg];
+  const min = Math.min(...all), max = Math.max(...all);
+  const x = (i) => PX + (points.length > 1 ? (i / (points.length - 1)) * (W - 2 * PX) : (W - 2 * PX) / 2);
+  const y = (v) => H - PY - ((v - min) / (max - min || 1)) * (H - 2 * PY);
+  const mk = (tag, attrs) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+  const line = (arr) => arr.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, class: 'spark', role: 'img' });
+  svg.append(
+    mk('polyline', { points: line(avg), class: 'sp-avg' }),
+    mk('polyline', { points: line(points), class: 'sp-line' }),
+    mk('circle', { cx: x(points.length - 1), cy: y(points[points.length - 1]), r: 2.5, class: 'sp-end' }),
+  );
+  const title = mk('title', {});
+  title.textContent = points.map((p, i) => `wk ${weeks[i]}: ${p} (avg ${avg[i]})`).join('\n');
+  svg.append(title);
+  return svg;
+}
+
 function cell(col, row) {
   const td = document.createElement('td');
   if (col.type === 'num') td.className = 'num';
@@ -63,6 +90,8 @@ function cell(col, row) {
     td.append(boxPlot(v, col.axis));
   } else if (col.type === 'strip') {
     td.append(stripPlot(v, col.axis));
+  } else if (col.type === 'sparkline') {
+    td.append(sparkline(v));
   } else if (col.type === 'result') {
     const b = document.createElement('span');
     b.className = `badge ${v}`;
@@ -122,6 +151,9 @@ function buildFilters(data) {
   } else if (rows.some((r) => 'team' in r)) {
     f.append(select('team', 'Team', uniq('team').sort().map((v) => ({ value: v, label: v }))));
   }
+  if (rows.some((r) => r.arc)) {
+    f.append(select('arc', 'Arc', uniq('arc').sort().map((v) => ({ value: v, label: v }))));
+  }
   if (rows.some((r) => r.kind)) {
     f.append(select('kind', 'Type', uniq('kind').sort().map((v) => ({ value: v, label: v }))));
   }
@@ -144,6 +176,7 @@ function matches(row, f) {
   if (f.team && row.team !== f.team) return false;
   if (f.position && row.position !== f.position) return false;
   if (f.kind && row.kind !== f.kind) return false;
+  if (f.arc && row.arc !== f.arc) return false;
   if (f.result && row.result !== f.result) return false;
   if (f.playoff && String(!!row.playoff) !== f.playoff) return false;
   if (f.q) {
@@ -175,7 +208,7 @@ function render() {
     const th = el('th', { className: c.type === 'num' ? 'num sortable' : 'sortable', tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
     th.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
     const toggle = () => {
-      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' ? 'desc' : 'asc';
+      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' || c.type === 'sparkline' ? 'desc' : 'asc';
       const next = !active ? first : sort.dir === 'asc' ? 'desc' : 'asc';
       view.sort = { key: sortKey, dir: next };
       render();

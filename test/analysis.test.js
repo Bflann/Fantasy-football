@@ -8,6 +8,7 @@ const efficiency = require('../src/analyses/efficiency');
 const headToHead = require('../src/analyses/headToHead');
 const parallel = require('../src/analyses/parallelUniverse');
 const heartbreak = require('../src/analyses/heartbreak');
+const seasonArc = require('../src/analyses/seasonArc');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -179,4 +180,25 @@ test('optimalLineup still returns the total and best lineup picks the same entri
   const best = bestLineup(roster, { 0: 1, 20: 5 });
   assert.strictEqual(best.total, 18);
   assert.ok(best.chosen.has(roster[1]));
+});
+
+test('season arc: names rising, fading and wire-to-wire seasons', () => {
+  const week = (team, scores) => scores.map((p, i) => ({ season: 2024, week: i + 1, playoff: false, team, ownerId: team, owner: team, points: p, result: 'W' }));
+  // Ten teams around 100; the interesting ones are laid out below. Fillers hover near the average.
+  const filler = Array.from({ length: 7 }, (_, i) => week(`F${i}`, [100, 101, 99, 100, 102, 98, 100, 101]));
+  const games = [
+    ...filler.flat(),
+    ...week('Riser', [60, 70, 80, 95, 110, 125, 135, 140]),
+    ...week('Faller', [140, 135, 125, 110, 95, 80, 70, 60]),
+    ...week('King', [150, 160, 155, 170, 150, 165, 158, 162]),
+  ];
+  const arc = Object.fromEntries(seasonArc.run(games).rows.map((r) => [r.team, r.arc]));
+  assert.strictEqual(arc.Riser, 'Late bloomer');
+  assert.strictEqual(arc.Faller, 'Fast start, faded');
+  assert.strictEqual(arc.King, 'Wire to wire');
+});
+
+test('season arc: too-short seasons are left out', () => {
+  const games = [1, 2, 3].map((w) => ({ season: 2026, week: w, playoff: false, team: 'T', ownerId: 'T', owner: 'T', points: 100, result: 'W' }));
+  assert.strictEqual(seasonArc.run(games).rows.length, 0);
 });
