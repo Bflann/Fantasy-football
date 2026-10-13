@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadEnv } = require('./env');
 loadEnv();
-const { loadGames, clearCache, getSeasons } = require('./league');
+const { loadInput, clearCache } = require('./league');
 const analyses = require('./analyses');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -24,9 +24,9 @@ const server = http.createServer(async (req, res) => {
     if (m) {
       const a = analyses.byId(m[1]);
       if (!a) return send(res, 404, { error: 'Unknown analysis' });
-      const games = await loadGames();
+      const { input, seasons } = await loadInput(a);
       const limit = Number(url.searchParams.get('limit')) || undefined;
-      return send(res, 200, { ...a.run(games, { limit }), seasons: getSeasons() });
+      return send(res, 200, { ...a.run(input, { limit }), seasons });
     }
     if (url.pathname === '/api/refresh') { clearCache(); return send(res, 200, { ok: true }); }
     const file = path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname);

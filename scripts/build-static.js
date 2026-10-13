@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadEnv } = require('../src/env');
 loadEnv();
-const { loadGames, getSeasons } = require('../src/league');
+const { loadGames, loadInput } = require('../src/league');
 const analyses = require('../src/analyses');
 
 (async () => {
@@ -15,6 +15,9 @@ const analyses = require('../src/analyses');
   const games = await loadGames();
   const write = (name, obj) => fs.writeFileSync(path.join(out, 'data', name), JSON.stringify(obj));
   write('analyses.json', analyses.list.map(({ id, title, description }) => ({ id, title, description })));
-  for (const a of analyses.list) write(`${a.id}.json`, { ...a.run(games), seasons: getSeasons() });
+  for (const a of analyses.list) {
+    const { input, seasons } = await loadInput(a);
+    write(`${a.id}.json`, { ...a.run(input), seasons });
+  }
   console.log(`Built ${analyses.list.length} analyses from ${games.length} team-weeks into ${out}`);
 })().catch((e) => { console.error(e.message); process.exit(1); });

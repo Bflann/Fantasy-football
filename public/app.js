@@ -41,12 +41,25 @@ function buildFilters(data) {
   f.innerHTML = '';
   const rows = data.rows;
   const uniq = (key) => [...new Set(rows.map((r) => r[key]))];
-  f.append(el('input', { type: 'search', name: 'q', placeholder: 'Search team, opponent, owner…' }));
+  f.append(el('input', { type: 'search', name: 'q', placeholder: 'Search team, owner, player…' }));
   if (rows.some((r) => 'season' in r)) {
     f.append(select('season', 'Season', uniq('season').sort((a, b) => b - a).map((v) => ({ value: v, label: v }))));
   }
-  if (rows.some((r) => 'team' in r)) {
+  if (rows.some((r) => r.ownerId)) {
+    // Owners are keyed by their stable account id; team names change from season to season.
+    const owners = new Map();
+    for (const r of rows) {
+      const o = owners.get(r.ownerId) || { names: new Set(), latest: -Infinity, label: r.owner };
+      o.names.add(r.team);
+      if (r.season >= o.latest) { o.latest = r.season; o.label = `${r.owner || 'Unknown'} (${r.team})`; }
+      owners.set(r.ownerId, o);
+    }
+    f.append(select('ownerId', 'Owner', [...owners].map(([value, o]) => ({ value, label: o.label })).sort((a, b) => a.label.localeCompare(b.label))));
+  } else if (rows.some((r) => 'team' in r)) {
     f.append(select('team', 'Team', uniq('team').sort().map((v) => ({ value: v, label: v }))));
+  }
+  if (rows.some((r) => r.position)) {
+    f.append(select('position', 'Position', uniq('position').filter(Boolean).sort().map((v) => ({ value: v, label: v }))));
   }
   if (rows.some((r) => 'result' in r)) {
     f.append(select('result', 'Result', ['W', 'L', 'T'].filter((r) => uniq('result').includes(r)).map((v) => ({ value: v, label: LABEL[v] }))));
@@ -60,11 +73,13 @@ function buildFilters(data) {
 
 function matches(row, f) {
   if (f.season && String(row.season) !== f.season) return false;
+  if (f.ownerId && row.ownerId !== f.ownerId) return false;
   if (f.team && row.team !== f.team) return false;
+  if (f.position && row.position !== f.position) return false;
   if (f.result && row.result !== f.result) return false;
   if (f.playoff && String(!!row.playoff) !== f.playoff) return false;
   if (f.q) {
-    const hay = [row.team, row.opponent, row.owner].filter(Boolean).join(' ').toLowerCase();
+    const hay = [row.team, row.opponent, row.owner, row.player].filter(Boolean).join(' ').toLowerCase();
     if (!hay.includes(f.q.toLowerCase())) return false;
   }
   return true;

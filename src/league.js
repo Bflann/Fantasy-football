@@ -1,8 +1,9 @@
-const { currentSeason, fetchSeason, normalizeSeason } = require('./espn');
+const { currentSeason, fetchSeason, fetchDraft, normalizeSeason, normalizeDraft } = require('./espn');
 
 const TTL = 10 * 60 * 1000;
 let cache = null;
-const clearCache = () => { cache = null; };
+let draftCache = null;
+const clearCache = () => { cache = null; draftCache = null; };
 const getSeasons = () => cache && cache.seasons;
 
 async function loadGames() {
@@ -32,4 +33,27 @@ async function loadGames() {
   return games;
 }
 
-module.exports = { loadGames, clearCache, getSeasons };
+// Draft picks for every season that has games (the seasons loadGames discovered).
+async function loadDraft() {
+  if (draftCache && Date.now() - draftCache.at < TTL) return draftCache.picks;
+  await loadGames();
+  const creds = { espnS2: process.env.ESPN_S2, swid: process.env.SWID };
+  const picks = [];
+  for (const y of cache.seasons) {
+    const raw = await fetchDraft(process.env.LEAGUE_ID, y, creds);
+    if (raw) picks.push(...normalizeDraft(y, raw));
+  }
+  if (!picks.length) throw Object.assign(new Error('No draft data found for that league.'), { code: 'EMPTY' });
+  draftCache = { at: Date.now(), picks };
+  return picks;
+}
+
+// Loads whichever dataset an analysis declares (`needs: 'draft'`, default team-week games).
+async function loadInput(analysis) {
+  const draft = analysis.needs === 'draft';
+  const input = draft ? await loadDraft() : await loadGames();
+  const seasons = draft ? [...new Set(input.map((r) => r.season))].sort((a, b) => b - a) : getSeasons();
+  return { input, seasons };
+}
+
+module.exports = { loadGames, loadDraft, loadInput, clearCache, getSeasons };
