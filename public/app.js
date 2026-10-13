@@ -290,7 +290,7 @@ function showView(name) {
 // Landing page: just links. Grouping is presentation only; unknown analyses fall into "More".
 const HOME_GROUPS = [
   ['League history', ['top-weeks', 'standings', 'head-to-head']],
-  ['Drafts and rosters', ['draft', 'efficiency', 'heartbreak', 'fingerprint']],
+  ['Drafts and rosters', ['draft', 'waiver', 'efficiency', 'heartbreak', 'fingerprint']],
   ['Schedule and luck', ['parallel-universe']],
   ['Trends and streaks', ['consistency', 'season-arc', 'clutch']],
 ];
@@ -300,6 +300,7 @@ const HOME_BLURBS = {
   standings: 'Every owner’s all-time record, with links to their pages.',
   'head-to-head': 'A matrix of every owner’s record against every other.',
   draft: 'Every pick ranked by how the player finished vs where he went.',
+  waiver: 'The best waiver-wire and free-agent pickups, by points started.',
   efficiency: 'How much of each roster’s potential made it into the lineup.',
   heartbreak: 'Losses that a different lineup (or a few points) would have flipped.',
   fingerprint: 'Where each team’s points came from, by position.',

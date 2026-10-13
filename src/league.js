@@ -64,10 +64,19 @@ async function loadLineups() {
   // Only keep lineups whose started points match the official game score; multi-week playoff
   // matchups score over several periods, so a single week's roster would not add up.
   const official = new Map(games.map((g) => [`${g.season}|${g.week}|${g.team}`, g.points]));
+  // Who each team drafted, so everyone else on a roster can be identified as a waiver/free-agent add.
+  const picks = await loadDraft().catch(() => []);
+  const draftedBy = new Map();
+  for (const p of picks) {
+    if (!draftedBy.has(p.season)) draftedBy.set(p.season, new Map());
+    const teams = draftedBy.get(p.season);
+    if (!teams.has(p.teamId)) teams.set(p.teamId, new Set());
+    teams.get(p.teamId).add(p.playerId);
+  }
   const records = [];
   for (const [season, weeks] of weeksBySeason) {
     const raw = await fetchLineups(process.env.LEAGUE_ID, season, creds, [...weeks].sort((a, b) => a - b));
-    for (const l of normalizeLineups(season, raw)) {
+    for (const l of normalizeLineups(season, raw, draftedBy.get(season))) {
       const pts = official.get(`${l.season}|${l.week}|${l.team}`);
       if (pts !== undefined && Math.abs(pts - l.actual) <= 0.05) records.push(l);
     }

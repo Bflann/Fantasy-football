@@ -11,6 +11,7 @@ const heartbreak = require('../src/analyses/heartbreak');
 const seasonArc = require('../src/analyses/seasonArc');
 const fingerprint = require('../src/analyses/fingerprint');
 const clutch = require('../src/analyses/clutch');
+const waiver = require('../src/analyses/waiverWire');
 const { buildTeamSeasons } = require('../src/teamSeason');
 
 const raw = {
@@ -271,4 +272,38 @@ test('team season pages: one per owner and season, with weekly data and links to
   assert.deepStrictEqual(p.seasons, [2024, 2023]);
   assert.strictEqual(p.draft.length, 0);
   assert.strictEqual(p.fingerprint, null); // no lineups supplied
+});
+
+test('waiver wire: sums points while started for non-drafted players', () => {
+  const l = (week, pickups) => ({ season: 2024, week, playoff: false, team: 'A', owner: 'A', ownerId: '{A}', pickups });
+  const p = (playerId, player, points, started) => ({ playerId, player, position: 'WR', points, started });
+  const lineups = [
+    l(1, [p(1, 'Hero', 10, false)]),
+    l(2, [p(1, 'Hero', 25, true), p(2, 'Benchwarmer', 30, false)]),
+    l(3, [p(1, 'Hero', 15, true)]),
+  ];
+  const { rows } = waiver.run(lineups);
+  assert.strictEqual(rows.length, 1); // Benchwarmer never started: excluded
+  assert.strictEqual(rows[0].player, 'Hero');
+  assert.strictEqual(rows[0].points, 40); // 25 + 15, the benched 10 does not count
+  assert.strictEqual(rows[0].starts, 2);
+  assert.strictEqual(rows[0].addedWeek, 1);
+  assert.strictEqual(rows[0].weeks, 3);
+});
+
+test('lineup records mark non-drafted players as pickups', () => {
+  const { normalizeLineups } = require('../src/espn');
+  const entry = (playerId, name, slot, points) => ({ lineupSlotId: slot, playerId, playerPoolEntry: { appliedStatTotal: points, player: { fullName: name, eligibleSlots: [slot], defaultPositionId: 3 } } });
+  const raw = {
+    teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }],
+    settings: { rosterSettings: { lineupSlotCounts: { 4: 1, 20: 5 } } },
+    schedule: [{
+      matchupPeriodId: 1, winner: 'HOME',
+      home: { teamId: 1, totalPoints: 20, rosterForCurrentScoringPeriod: { entries: [entry(10, 'Drafted Guy', 4, 20), entry(11, 'Waiver Guy', 20, 5)] } },
+      away: { teamId: 2, totalPoints: 10, rosterForCurrentScoringPeriod: { entries: [entry(12, 'Other', 4, 10)] } },
+    }],
+  };
+  const drafted = new Map([[1, new Set([10])], [2, new Set([12])]]);
+  const [home] = normalizeLineups(2024, [{ week: 1, raw }], drafted);
+  assert.deepStrictEqual(home.pickups.map((x) => [x.player, x.started]), [['Waiver Guy', false]]);
 });

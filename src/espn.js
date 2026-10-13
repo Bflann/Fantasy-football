@@ -163,7 +163,7 @@ function bestLineup(entries, slotCounts) {
 const optimalLineup = (entries, slotCounts) => bestLineup(entries, slotCounts).total;
 
 // One record per team-week: points actually started vs. the best lineup that roster could have fielded.
-function normalizeLineups(year, weeks) {
+function normalizeLineups(year, weeks, drafted = new Map()) {
   if (!weeks.length) return [];
   const first = weeks[0].raw;
   const teams = new Map((first.teams || []).map((t) => [t.id, t]));
@@ -179,6 +179,7 @@ function normalizeLineups(year, weeks) {
         const roster = side.rosterForCurrentScoringPeriod;
         if (!roster || !roster.entries || !roster.entries.length) continue;
         const entries = roster.entries.map((e) => ({
+          playerId: e.playerId,
           slot: e.lineupSlotId,
           points: (e.playerPoolEntry && e.playerPoolEntry.appliedStatTotal) || 0,
           eligible: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.eligibleSlots) || [],
@@ -222,6 +223,12 @@ function normalizeLineups(year, weeks) {
           optimal: Math.round(optimal * 100) / 100,
           moves,
           positions,
+          // Everyone on the roster who was not drafted by this team: waiver and free-agent adds.
+          pickups: drafted.size
+            ? entries
+              .filter((e) => !(drafted.get(side.teamId) || new Set()).has(e.playerId))
+              .map((e) => ({ playerId: e.playerId, player: e.name, position: e.position, points: Math.round(e.points * 100) / 100, started: e.slot !== BENCH_SLOT && e.slot !== IR_SLOT }))
+            : [],
           topBench: bench ? { player: bench.name, points: Math.round(bench.points * 100) / 100 } : null,
         });
       }
@@ -251,6 +258,7 @@ function normalizeDraft(year, { league, players }) {
       round: k.roundId,
       team: teamName(t),
       teamId: k.teamId,
+      playerId: k.playerId,
       ...ownerOf(t),
       player: (p && p.player && p.player.fullName) || `Player ${k.playerId}`,
       position: (p && POSITIONS[p.player.defaultPositionId]) || '',
