@@ -11,6 +11,7 @@ const heartbreak = require('../src/analyses/heartbreak');
 const seasonArc = require('../src/analyses/seasonArc');
 const fingerprint = require('../src/analyses/fingerprint');
 const clutch = require('../src/analyses/clutch');
+const hotHand = require('../src/analyses/hotHand');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -244,4 +245,33 @@ test('clutch: divides multi-week playoff scores by the weeks they cover', () => 
   // Baseline is the owner's regular-season average that year: (4*100 + 10)/5 = 82.
   assert.strictEqual(rows[0].regularAvg, 82);
   assert.strictEqual(rows[0].diff, 28);
+});
+
+test('hot hand: finds the effect when top weeks are followed by better weeks', () => {
+  // 10 teams. Team H follows every top-3 week with a big follow-up; everyone else is flat at 100.
+  const games = [];
+  for (let w = 1; w <= 8; w++) {
+    for (let t = 0; t < 10; t++) {
+      let points = 100 + t; // fixed order so T9 > T8 > ...
+      if (t === 0) points = w % 2 === 1 ? 200 : 140; // H: top on odd weeks, then still well above the rest
+      games.push({ season: 2024, week: w, playoff: false, team: `T${t}`, owner: `T${t}`, ownerId: `T${t}`, points, result: 'W' });
+    }
+  }
+  const { rows } = hotHand.run(games);
+  assert.strictEqual(rows[0].scope, 'Whole league');
+  assert.ok(rows[0].afterTop > 0 && rows[0].afterBottom > 0);
+  assert.ok(['Hot hand looks real', 'Looks like noise', 'Reverses (cools off)', 'Not enough data'].includes(rows[0].verdict));
+  const h = rows.find((r) => r.ownerId === 'T0');
+  assert.ok(h.afterTop >= 3);
+  // After H's 200-point weeks it scores 140, below its own average: cooling off, not heating up.
+  assert.ok(h.afterTopAvg < 0);
+});
+
+test('hot hand: only back-to-back weeks are paired', () => {
+  const g = (week, team, points) => ({ season: 2024, week, playoff: false, team, owner: team, ownerId: team, points, result: 'W' });
+  const mk = (weeks) => weeks.flatMap((w) => Array.from({ length: 5 }, (_, t) => g(w, `T${t}`, 100 + t * 10)));
+  // Weeks 1,2,3,5,6 -> pairs (1,2) (2,3) (5,6); week 3 -> 5 is a gap and is skipped.
+  const { rows } = hotHand.run(mk([1, 2, 3, 5, 6]));
+  const n = rows[0].afterTop + rows[0].afterBottom;
+  assert.ok(n > 0 && n <= 3 * 3 * 2); // at most 3 pairs x (top 3 + bottom 3 of 5 teams)
 });
