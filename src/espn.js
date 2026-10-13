@@ -1,5 +1,5 @@
 // ESPN fantasy football API client + normalisation into a flat list of games.
-const BASE = 'https://lksv3.fantasy.espn.com/apis/v3/games/ffl';
+const BASE = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
 
 function currentSeason(now = new Date()) {
   // The NFL season starts in September; before August we're still in last year's.
