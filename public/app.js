@@ -3,6 +3,7 @@ const LABEL = { W: 'Won', L: 'Lost', T: 'Tied' };
 // Owner ids are ESPN account GUIDs like "{ABC-…}"; pages use them lowercase and unbraced.
 const ownerSlug = (id) => String(id || '').replace(/[{}]/g, '').toLowerCase();
 const ownerHref = (slug) => `#owner/${slug}`;
+const teamHref = (slug, season) => `#team/${slug}/${season}`;
 
 // Inline box-and-whisker plot on an axis shared by every row (col.axis) so rows compare directly.
 function boxPlot(box, { min, max }) {
@@ -139,10 +140,15 @@ function cell(col, row) {
     b.className = `badge ${v}`;
     b.textContent = LABEL[v] || v;
     td.append(b);
-  } else if ((col.type === 'owner' || col.key === 'team') && row.ownerId) {
+  } else if (col.type === 'owner' && row.ownerId) {
     td.append(Object.assign(document.createElement('a'), { href: ownerHref(ownerSlug(row.ownerId)), textContent: v }));
+  } else if (col.key === 'team' && row.ownerId) {
+    // A team name belongs to one season, so it goes to that team's season page when we know the season.
+    const href = typeof row.season === 'number' ? teamHref(ownerSlug(row.ownerId), row.season) : ownerHref(ownerSlug(row.ownerId));
+    td.append(Object.assign(document.createElement('a'), { href, textContent: v }));
   } else if (col.key === 'opponent' && row.opponentOwnerId) {
-    td.append(Object.assign(document.createElement('a'), { href: ownerHref(ownerSlug(row.opponentOwnerId)), textContent: v }));
+    const href = typeof row.season === 'number' ? teamHref(ownerSlug(row.opponentOwnerId), row.season) : ownerHref(ownerSlug(row.opponentOwnerId));
+    td.append(Object.assign(document.createElement('a'), { href, textContent: v }));
   } else {
     td.textContent = col.key === 'points' || col.key === 'opponentPoints' ? v.toFixed(2)
       : col.key === 'winPct' ? `${(v * 100).toFixed(1)}%` : v;
@@ -159,6 +165,7 @@ function cell(col, row) {
 
 // Served by the Node server (live ESPN data) or as static JSON on GitHub Pages.
 let staticMode = false;
+const teamUrl = (slug, season) => (staticMode ? `data/teams/${slug}-${season}.json` : `api/teams/${slug}/${season}`);
 const ownerUrl = (slug) => (staticMode ? `data/owners/${slug}.json` : `api/owners/${slug}`);
 const apiUrl = (path) => (staticMode ? `data/${path || 'analyses'}.json` : `api/analyses${path ? '/' + path : ''}`);
 
@@ -297,8 +304,28 @@ async function showProfile(slug) {
   }
 }
 
+async function showTeamSeason(slug, season) {
+  showView('profile');
+  const root = $('profile');
+  root.innerHTML = '';
+  root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Loading… (builds the season from weekly rosters; the first load can take a few seconds)' }));
+  try {
+    const res = await fetch(teamUrl(slug, season));
+    const p = await res.json();
+    if (!res.ok) throw new Error(p.error);
+    document.title = `${p.team} ${p.season} · Fantasy Football Analyzer`;
+    renderTeamSeason(root, p, { team: teamHref, owner: ownerHref, slug: ownerSlug, radar: radarPlot, boxplot: boxPlot, strip: stripPlot });
+    window.scrollTo(0, 0);
+  } catch (e) {
+    root.innerHTML = '';
+    root.append(Object.assign(document.createElement('p'), { className: 'error', textContent: e.message }));
+  }
+}
+
 let analyses = [];
 function route() {
+  const t = location.hash.match(/^#team\/([\w-]+)\/(\d{4})$/);
+  if (t) return showTeamSeason(t[1], t[2]);
   const m = location.hash.match(/^#owner\/([\w-]+)$/);
   if (m) return showProfile(m[1]);
   document.title = 'Fantasy Football Analyzer';
@@ -357,5 +384,5 @@ $('filters').addEventListener('submit', (e) => e.preventDefault());
     b.onclick = () => { showView('analysis'); if (location.hash) history.pushState(null, '', location.pathname + location.search); show(a); };
     $('tabs').append(b);
   }
-  if (location.hash.startsWith('#owner/')) route(); else show(list[0]);
+  if (/^#(owner|team)\//.test(location.hash)) route(); else show(list[0]);
 })();

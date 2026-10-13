@@ -95,3 +95,18 @@ td.wrap{min-width:140px;max-width:220px;font-size:.85rem}
 td.side-team-a,td.side-team-b{max-width:200px;overflow-wrap:anywhere}
 td.wrap{max-width:200px}
 td.team-name{max-width:180px;overflow-wrap:anywhere}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:12px}
+.panel h3{margin:0 0 8px!important}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.legend-note{font-size:.8rem;margin:6px 0 0}
+.weekly{width:100%;height:auto;max-height:230px;display:block}
+.wk-grid{stroke:var(--line);stroke-width:1}
+.wk-axis{font-size:10px;fill:var(--muted)}
+.wk-win{fill:color-mix(in srgb,var(--w) 70%,transparent)}
+.wk-loss{fill:color-mix(in srgb,var(--l) 70%,transparent)}
+.wk-tie{fill:var(--muted)}
+.wk-avg{stroke:var(--fg);stroke-width:2}
+.radar.big{width:230px;height:230px;margin:6px auto 12px}
+.boxplot.wide,.strip.wide{max-width:100%;width:100%;height:46px}
+.diff-inline.up{color:var(--w)}
+.diff-inline.down{color:var(--l)}

@@ -12,6 +12,7 @@ const seasonArc = require('../src/analyses/seasonArc');
 const fingerprint = require('../src/analyses/fingerprint');
 const clutch = require('../src/analyses/clutch');
 const hotHand = require('../src/analyses/hotHand');
+const { buildTeamSeasons } = require('../src/teamSeason');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -277,4 +278,26 @@ test('top weeks ignores two-week playoff matchups', () => {
   const g = (points, periods) => ({ season: 2023, week: 15, playoff: true, periods, team: 'A', owner: 'A', ownerId: '{A}', points, opponent: 'B', opponentPoints: 100, result: 'W' });
   const { rows } = topWeeks.run([g(250, 2), g(130, 1)]);
   assert.deepStrictEqual(rows.map((r) => r.points), [130]);
+});
+
+test('team season pages: one per owner and season, with weekly data and links to other seasons', () => {
+  const g = (season, week, ownerId, team, points, oppId, oppPoints) => ({
+    season, week, playoff: false, periods: 1, team, owner: ownerId, ownerId, opponent: oppId, opponentOwnerId: oppId,
+    points, opponentPoints: oppPoints, result: points > oppPoints ? 'W' : 'L',
+  });
+  const games = [];
+  for (const season of [2023, 2024]) {
+    for (let w = 1; w <= 4; w++) {
+      games.push(g(season, w, '{A}', `Team A ${season}`, 100 + w, '{B}', 90), g(season, w, '{B}', `Team B ${season}`, 90, '{A}', 100 + w));
+    }
+  }
+  const pages = buildTeamSeasons({ games });
+  assert.deepStrictEqual(Object.keys(pages).sort(), ['a/2023', 'a/2024', 'b/2023', 'b/2024'].map((k) => k.replace(/^(\w)/, '{$1}').toLowerCase().replace(/[{}]/g, '')));
+  const p = pages['a/2024'];
+  assert.strictEqual(p.team, 'Team A 2024');
+  assert.strictEqual(p.summary.record, '4-0');
+  assert.strictEqual(p.weeks.length, 4);
+  assert.deepStrictEqual(p.seasons, [2024, 2023]);
+  assert.strictEqual(p.draft.length, 0);
+  assert.strictEqual(p.fingerprint, null); // no lineups supplied
 });

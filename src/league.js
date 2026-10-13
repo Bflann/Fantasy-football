@@ -1,4 +1,5 @@
 const { buildProfiles } = require('./owners');
+const { buildTeamSeasons } = require('./teamSeason');
 const { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups } = require('./espn');
 
 const TTL = 10 * 60 * 1000;
@@ -92,4 +93,11 @@ async function loadProfiles() {
   return buildProfiles(games, picks);
 }
 
-module.exports = { loadGames, loadDraft, loadLineups, loadInput, loadProfiles, clearCache, getSeasons };
+// Team-season pages keyed "<owner slug>/<season>". Lineups and draft are optional extras.
+async function loadTeamSeasons() {
+  const games = await loadGames();
+  const [lineups, picks] = await Promise.all([loadLineups().catch(() => []), loadDraft().catch(() => [])]);
+  return buildTeamSeasons({ games, lineups, picks });
+}
+
+module.exports = { loadGames, loadDraft, loadLineups, loadInput, loadProfiles, loadTeamSeasons, clearCache, getSeasons };

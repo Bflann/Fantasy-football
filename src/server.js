@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadEnv } = require('./env');
 loadEnv();
-const { loadInput, loadProfiles, clearCache } = require('./league');
+const { loadInput, loadProfiles, loadTeamSeasons, clearCache } = require('./league');
 const analyses = require('./analyses');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -32,6 +32,11 @@ const server = http.createServer(async (req, res) => {
     if (o) {
       const profile = (await loadProfiles())[o[1]];
       return profile ? send(res, 200, profile) : send(res, 404, { error: 'Unknown owner' });
+    }
+    const t = url.pathname.match(/^\/api\/teams\/([\w-]+)\/(\d{4})$/);
+    if (t) {
+      const page = (await loadTeamSeasons())[`${t[1]}/${t[2]}`];
+      return page ? send(res, 200, page) : send(res, 404, { error: 'Unknown team season' });
     }
     if (url.pathname === '/api/refresh') { clearCache(); return send(res, 200, { ok: true }); }
     const file = path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname);
