@@ -177,7 +177,7 @@
 
   window.renderProfile = function (root, p, linkFor) {
     root.innerHTML = '';
-    const back = h('a', { href: '#', className: 'back', textContent: '← Back to tables' });
+    const back = h('a', { href: '#', className: 'back', textContent: '← Back', onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } });
     const teams = p.teams.map((t) => `${t.season}: ${t.team}`).join(' · ');
     const r = p.records;
 

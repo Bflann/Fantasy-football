@@ -110,3 +110,11 @@ td.team-name{max-width:180px;overflow-wrap:anywhere}
 .boxplot.wide,.strip.wide{max-width:100%;width:100%;height:46px}
 .diff-inline.up{color:var(--w)}
 .diff-inline.down{color:var(--l)}
+.home-link{text-decoration:none}
+.home-title{margin:8px 0 4px;font-size:1.6rem}
+.home-group{margin:26px 0 10px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.home-card{display:flex;flex-direction:column;gap:4px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:8px;text-decoration:none}
+.home-card:hover,.home-card:focus-visible{border-color:var(--fg);outline:none}
+.home-card strong{font-size:1rem}
+.home-card span{font-size:.85rem;color:var(--muted)}

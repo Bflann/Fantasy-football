@@ -281,9 +281,60 @@ function render() {
 }
 
 function showView(name) {
+  $('home').hidden = name !== 'home';
   $('analysis').hidden = name !== 'analysis';
   $('profile').hidden = name !== 'profile';
-  if (name === 'profile') document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+  if (name !== 'analysis') document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+}
+
+// Landing page: just links. Grouping is presentation only; unknown analyses fall into "More".
+const HOME_GROUPS = [
+  ['League history', ['top-weeks', 'standings', 'head-to-head']],
+  ['Drafts and rosters', ['draft', 'efficiency', 'heartbreak', 'fingerprint']],
+  ['Schedule and luck', ['parallel-universe']],
+  ['Trends and streaks', ['consistency', 'season-arc', 'clutch', 'hot-hand']],
+];
+
+const HOME_BLURBS = {
+  'top-weeks': 'The highest single-week scores ever, and whether they won.',
+  standings: 'Every owner’s all-time record, with links to their pages.',
+  'head-to-head': 'A matrix of every owner’s record against every other.',
+  draft: 'Every pick ranked by how the player finished vs where he went.',
+  efficiency: 'How much of each roster’s potential made it into the lineup.',
+  heartbreak: 'Losses that a different lineup (or a few points) would have flipped.',
+  fingerprint: 'Where each team’s points came from, by position.',
+  'parallel-universe': 'Each season replayed on every other owner’s schedule.',
+  consistency: 'Weekly score spread per team, with box plots.',
+  'season-arc': 'The shape of each season, week by week.',
+  clutch: 'Playoff scoring vs the same owner’s regular season.',
+  'hot-hand': 'What happens the week after a big (or awful) week.',
+};
+
+function showHome() {
+  document.title = 'Fantasy Football Analyzer';
+  showView('home');
+  const root = $('home');
+  root.innerHTML = '';
+  const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+  root.append(
+    el('h2', { className: 'home-title', textContent: 'Your league, in numbers' }),
+    el('p', { className: 'muted', textContent: 'Pick an analysis below. Click any owner or team name inside a table to open their page.' }),
+  );
+  const byId = new Map(analyses.map((a) => [a.id, a]));
+  const used = new Set();
+  const groups = HOME_GROUPS.map(([title, ids]) => [title, ids.filter((id) => byId.has(id)).map((id) => byId.get(id))]);
+  for (const [, list] of groups) list.forEach((a) => used.add(a.id));
+  const rest = analyses.filter((a) => !used.has(a.id));
+  if (rest.length) groups.push(['More', rest]);
+  for (const [title, list] of groups) {
+    if (!list.length) continue;
+    root.append(el('h3', { className: 'home-group', textContent: title }));
+    const grid = el('div', { className: 'home-grid' });
+    for (const a of list) {
+      grid.append(el('a', { className: 'home-card', href: `#a/${a.id}` }, el('strong', { textContent: a.title }), el('span', { textContent: HOME_BLURBS[a.id] || a.description })));
+    }
+    root.append(grid);
+  }
 }
 
 async function showProfile(slug) {
@@ -323,14 +374,22 @@ async function showTeamSeason(slug, season) {
 }
 
 let analyses = [];
+let currentAnalysis = null;
 function route() {
   const t = location.hash.match(/^#team\/([\w-]+)\/(\d{4})$/);
   if (t) return showTeamSeason(t[1], t[2]);
   const m = location.hash.match(/^#owner\/([\w-]+)$/);
   if (m) return showProfile(m[1]);
-  document.title = 'Fantasy Football Analyzer';
-  showView('analysis');
-  if (!view && analyses.length) show(analyses[0]);
+  const a = location.hash.match(/^#a\/([\w-]+)$/);
+  const found = a && analyses.find((x) => x.id === a[1]);
+  if (found) {
+    document.title = `${found.title} · Fantasy Football Analyzer`;
+    showView('analysis');
+    if (currentAnalysis !== found.id) { currentAnalysis = found.id; return show(found); }
+    document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.id === found.id));
+    return;
+  }
+  showHome();
 }
 window.addEventListener('hashchange', route);
 
@@ -381,8 +440,8 @@ $('filters').addEventListener('submit', (e) => e.preventDefault());
     const b = document.createElement('button');
     b.textContent = a.title;
     b.dataset.id = a.id;
-    b.onclick = () => { showView('analysis'); if (location.hash) history.pushState(null, '', location.pathname + location.search); show(a); };
+    b.onclick = () => { location.hash = `#a/${a.id}`; };
     $('tabs').append(b);
   }
-  if (/^#(owner|team)\//.test(location.hash)) route(); else show(list[0]);
+  route();
 })();
