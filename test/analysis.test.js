@@ -217,8 +217,8 @@ test('fingerprint: shares sum to 100 and compare against the league', () => {
   assert.strictEqual(rows.length, 2);
   assert.strictEqual(q.qbShare, 60);
   assert.strictEqual(q.rbShare + q.wrShare + q.teShare + q.kShare + q.dstShare, 40);
-  // League QB share is (60+20)/200 = 40%, so QBHeavy sits at 1.5x.
-  assert.strictEqual(q.radar.values[0], 1.5);
-  assert.strictEqual(columns.find((c) => c.key === 'qbShare').league, 40);
+  // League QB share counts every game, including the short season: (360+120+100)/1300 = 44.6%.
+  assert.strictEqual(columns.find((c) => c.key === 'qbShare').league, 44.6);
+  assert.strictEqual(q.radar.values[0], 1.34); // 60% / 44.6%
   assert.match(q.quirk, /^Heavy on QB/);
 });
