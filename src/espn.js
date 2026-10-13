@@ -138,8 +138,9 @@ async function fetchLineups(leagueId, year, creds, weeks) {
 const BENCH_SLOT = 20;
 const IR_SLOT = 21;
 
-// Best possible score from a roster: fill the most restrictive slots first, then flex-style slots.
-function optimalLineup(entries, slotCounts) {
+// Best possible lineup from a roster: fill the most restrictive slots first, then flex-style slots.
+// Returns the total and the set of chosen entries.
+function bestLineup(entries, slotCounts) {
   const pool = entries.filter((e) => e.slot !== IR_SLOT);
   const slots = [];
   for (const [id, n] of Object.entries(slotCounts)) {
@@ -156,8 +157,10 @@ function optimalLineup(entries, slotCounts) {
     for (const e of pool) if (!used.has(e) && e.eligible.includes(slot) && (!best || e.points > best.points)) best = e;
     if (best) { used.add(best); total += best.points; }
   }
-  return total;
+  return { total, chosen: used };
 }
+
+const optimalLineup = (entries, slotCounts) => bestLineup(entries, slotCounts).total;
 
 // One record per team-week: points actually started vs. the best lineup that roster could have fielded.
 function normalizeLineups(year, weeks) {
@@ -180,11 +183,23 @@ function normalizeLineups(year, weeks) {
           points: (e.playerPoolEntry && e.playerPoolEntry.appliedStatTotal) || 0,
           eligible: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.eligibleSlots) || [],
           name: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.fullName) || 'Unknown',
+          position: (e.playerPoolEntry && e.playerPoolEntry.player && POSITIONS[e.playerPoolEntry.player.defaultPositionId]) || '',
         }));
         const started = entries.filter((e) => e.slot !== BENCH_SLOT && e.slot !== IR_SLOT);
         const actual = started.reduce((s, e) => s + e.points, 0);
-        const optimal = Math.max(optimalLineup(entries, slotCounts), actual);
+        const best = bestLineup(entries, slotCounts);
+        const optimal = Math.max(best.total, actual);
         const bench = entries.filter((e) => e.slot === BENCH_SLOT).sort((a, b) => b.points - a.points)[0];
+        // The swaps that turn the real lineup into the best one: benched players in, started players out.
+        const ins = [...best.chosen].filter((e) => !started.includes(e)).sort((a, b) => b.points - a.points);
+        const outs = started.filter((e) => !best.chosen.has(e)).sort((a, b) => a.points - b.points);
+        const moves = ins.map((e, i) => ({
+          in: { player: e.name, position: e.position, points: Math.round(e.points * 100) / 100 },
+          out: outs[i] ? { player: outs[i].name, position: outs[i].position, points: Math.round(outs[i].points * 100) / 100 } : null,
+        }));
+        const other = side === g.home ? g.away : g.home;
+        const mine = side === g.home ? 'HOME' : 'AWAY';
+        const ot = teams.get(other.teamId);
         const t = teams.get(side.teamId);
         out.push({
           season: year,
@@ -193,8 +208,13 @@ function normalizeLineups(year, weeks) {
           team: teamName(t),
           teamId: side.teamId,
           ...ownerOf(t),
+          opponent: teamName(ot),
+          opponentOwnerId: ownerOf(ot).ownerId,
+          opponentPoints: other.totalPoints,
+          result: g.winner === 'TIE' ? 'T' : g.winner === mine ? 'W' : 'L',
           actual: Math.round(actual * 100) / 100,
           optimal: Math.round(optimal * 100) / 100,
+          moves,
           topBench: bench ? { player: bench.name, points: Math.round(bench.points * 100) / 100 } : null,
         });
       }
@@ -233,4 +253,4 @@ function normalizeDraft(year, { league, players }) {
   });
 }
 
-module.exports = { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups, optimalLineup };
+module.exports = { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups, optimalLineup, bestLineup };

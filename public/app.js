@@ -122,6 +122,9 @@ function buildFilters(data) {
   } else if (rows.some((r) => 'team' in r)) {
     f.append(select('team', 'Team', uniq('team').sort().map((v) => ({ value: v, label: v }))));
   }
+  if (rows.some((r) => r.kind)) {
+    f.append(select('kind', 'Type', uniq('kind').sort().map((v) => ({ value: v, label: v }))));
+  }
   if (rows.some((r) => r.position)) {
     f.append(select('position', 'Position', uniq('position').filter(Boolean).sort().map((v) => ({ value: v, label: v }))));
   }
@@ -140,6 +143,7 @@ function matches(row, f) {
   if (f.ownerId && row.ownerId !== f.ownerId) return false;
   if (f.team && row.team !== f.team) return false;
   if (f.position && row.position !== f.position) return false;
+  if (f.kind && row.kind !== f.kind) return false;
   if (f.result && row.result !== f.result) return false;
   if (f.playoff && String(!!row.playoff) !== f.playoff) return false;
   if (f.q) {

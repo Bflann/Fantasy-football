@@ -7,6 +7,7 @@ const consistency = require('../src/analyses/consistency');
 const efficiency = require('../src/analyses/efficiency');
 const headToHead = require('../src/analyses/headToHead');
 const parallel = require('../src/analyses/parallelUniverse');
+const heartbreak = require('../src/analyses/heartbreak');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -154,4 +155,28 @@ test('parallel universes: replays each team against every other schedule', () =>
   assert.strictEqual(c.universes.actual, 0);
   assert.ok(c.universes.values.every((w) => w === 0));
   assert.ok(rows.every((r) => r.universes.values.length === 2)); // three owners -> two alternates
+});
+
+test('heartbreak: lineup flips and close losses, ranked by regret', () => {
+  const l = (week, actual, optimal, opponentPoints, result = 'L', moves = []) =>
+    ({ season: 2024, week, playoff: false, team: 'A', owner: 'A', ownerId: '{A}', opponent: 'B', opponentOwnerId: '{B}', actual, optimal, opponentPoints, result, moves });
+  const { rows } = heartbreak.run([
+    l(1, 100, 130, 110, 'L', [{ in: { player: 'Bench Star', points: 30 }, out: { player: 'Dud', points: 0 } }]), // flip
+    l(2, 100, 101, 102), // close, not a flip
+    l(3, 100, 150, 99.5, 'W'), // a win: ignored
+    l(4, 80, 90, 120), // blowout, even best lineup loses: ignored
+  ]);
+  assert.deepStrictEqual(rows.map((r) => [r.week, r.kind]), [[1, 'Lineup flip'], [2, 'Lost by a hair']]);
+  assert.strictEqual(rows[0].regret, 20);
+  assert.match(rows[0].swaps, /Bench Star \(30\) for Dud \(0\)/);
+  assert.strictEqual(rows[1].regret, -1);
+});
+
+test('optimalLineup still returns the total and best lineup picks the same entries', () => {
+  const { bestLineup } = require('../src/espn');
+  const e = (slot, points, eligible) => ({ slot, points, eligible, name: 'p' });
+  const roster = [e(0, 10, [0, 20]), e(20, 18, [0, 20])];
+  const best = bestLineup(roster, { 0: 1, 20: 5 });
+  assert.strictEqual(best.total, 18);
+  assert.ok(best.chosen.has(roster[1]));
 });
