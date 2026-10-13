@@ -272,3 +272,9 @@ test('hot hand: only back-to-back weeks are paired', () => {
   const n = rows[0].afterTop + rows[0].afterBottom;
   assert.ok(n > 0 && n <= 3 * 3 * 2); // at most 3 pairs x (top 3 + bottom 3 of 5 teams)
 });
+
+test('top weeks ignores two-week playoff matchups', () => {
+  const g = (points, periods) => ({ season: 2023, week: 15, playoff: true, periods, team: 'A', owner: 'A', ownerId: '{A}', points, opponent: 'B', opponentPoints: 100, result: 'W' });
+  const { rows } = topWeeks.run([g(250, 2), g(130, 1)]);
+  assert.deepStrictEqual(rows.map((r) => r.points), [130]);
+});

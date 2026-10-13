@@ -2,10 +2,11 @@
 module.exports = {
   id: 'top-weeks',
   title: 'Top scoring weeks',
-  description: 'Every team’s best single-week scores across all seasons, and whether the big number actually won.',
+  description: 'Every team’s best single-week scores across all seasons, and whether the big number actually won. Two-week playoff matchups are left out because their score is a two-week total.',
   run(games, { limit } = {}) {
     // No limit by default: return every team-week; the UI sorts and filters.
-    const rows = [...games].sort((a, b) => b.points - a.points).slice(0, limit || undefined);
+    // Two-week playoff matchups report the two weeks' sum, which isn't a single-week score.
+    const rows = games.filter((g) => !g.periods || g.periods === 1).sort((a, b) => b.points - a.points).slice(0, limit || undefined);
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
