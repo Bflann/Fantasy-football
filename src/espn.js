@@ -15,8 +15,17 @@ function seasonUrl(leagueId, year) {
 
 async function fetchSeason(leagueId, year, { espnS2, swid } = {}) {
   const headers = { Accept: 'application/json', 'User-Agent': 'fantasy-football-analyzer' };
-  if (espnS2 && swid) headers.Cookie = `espn_s2=${espnS2}; SWID=${swid}`;
-  const res = await fetch(seasonUrl(leagueId, year), { headers });
+  const clean = (v) => (v || '').replace(/\s+/g, '').replace(/^["']|["']$/g, '');
+  if (clean(espnS2) && clean(swid)) headers.Cookie = `espn_s2=${clean(espnS2)}; SWID=${clean(swid)}`;
+  let res;
+  try {
+    res = await fetch(seasonUrl(leagueId, year), { headers });
+  } catch (err) {
+    const c = err.cause || {};
+    const e = new Error(`network error: ${c.code || c.message || err.message}`);
+    e.code = 'NETWORK';
+    throw e;
+  }
   if (res.status === 401 || res.status === 403) {
     const e = new Error('ESPN says this league is private. Set ESPN_S2 and SWID in .env.');
     e.code = 'AUTH';
