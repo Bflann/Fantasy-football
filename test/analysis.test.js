@@ -12,6 +12,7 @@ const seasonArc = require('../src/analyses/seasonArc');
 const fingerprint = require('../src/analyses/fingerprint');
 const clutch = require('../src/analyses/clutch');
 const waiver = require('../src/analyses/waiverWire');
+const { buildMatches, matchKey } = require('../src/matches');
 const { buildTeamSeasons } = require('../src/teamSeason');
 
 const raw = {
@@ -306,4 +307,33 @@ test('lineup records mark non-drafted players as pickups', () => {
   const drafted = new Map([[1, new Set([10])], [2, new Set([12])]]);
   const [home] = normalizeLineups(2024, [{ week: 1, raw }], drafted);
   assert.deepStrictEqual(home.pickups.map((x) => [x.player, x.started]), [['Waiver Guy', false]]);
+});
+
+test('match pages: one per matchup, order-insensitive key, rosters with stat breakdowns', () => {
+  const player = (name, slot, points, breakdown = []) => ({ playerId: name, player: name, position: 'QB', slot, points, breakdown });
+  const l = (ownerId, opp, actual, roster) => ({
+    season: 2024, week: 3, playoff: false, team: `Team ${ownerId}`, owner: ownerId, ownerId, opponentOwnerId: opp,
+    actual, optimal: actual + 5, moves: [], roster,
+  });
+  const lineups = [
+    l('{A}', '{B}', 20, [player('QB A', 0, 20, [{ label: 'Passing yards', value: 250, points: 10 }]), player('Bench A', 20, 7)]),
+    l('{B}', '{A}', 15, [player('QB B', 0, 15)]),
+  ];
+  const pages = buildMatches(lineups);
+  const keys = Object.keys(pages);
+  assert.strictEqual(keys.length, 1);
+  assert.strictEqual(keys[0], matchKey(2024, 3, 'b', 'a')); // either order maps to the same key
+  const m = pages[keys[0]];
+  assert.strictEqual(m.winner, 'a');
+  const a = m.teams.find((t) => t.slug === 'a');
+  assert.deepStrictEqual(a.roster.map((r) => [r.player, r.slot, r.started]), [['QB A', 'QB', true], ['Bench A', 'Bench', false]]);
+  assert.strictEqual(a.roster[0].breakdown[0].label, 'Passing yards');
+});
+
+test('stat labels: known ids are named, D/ST brackets are generic, unknown ids fall back', () => {
+  const { label, isBracket } = require('../src/statLabels');
+  assert.strictEqual(label(3), 'Passing yards');
+  assert.strictEqual(label(130), 'Yards allowed bracket');
+  assert.ok(isBracket(130) && !isBracket(3));
+  assert.strictEqual(label(9999), 'Other scoring (stat 9999)');
 });

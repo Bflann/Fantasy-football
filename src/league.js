@@ -1,5 +1,6 @@
 const { buildProfiles } = require('./owners');
 const { buildTeamSeasons } = require('./teamSeason');
+const { buildMatches } = require('./matches');
 const { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups } = require('./espn');
 
 const TTL = 10 * 60 * 1000;
@@ -109,4 +110,9 @@ async function loadTeamSeasons() {
   return buildTeamSeasons({ games, lineups, picks });
 }
 
-module.exports = { loadGames, loadDraft, loadLineups, loadInput, loadProfiles, loadTeamSeasons, clearCache, getSeasons };
+// Matchup pages keyed "<season>/<week>/<slugLo>/<slugHi>".
+async function loadMatches() {
+  return buildMatches(await loadLineups());
+}
+
+module.exports = { loadGames, loadDraft, loadLineups, loadInput, loadProfiles, loadTeamSeasons, loadMatches, clearCache, getSeasons };

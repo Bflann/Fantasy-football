@@ -118,3 +118,15 @@ td.team-name{max-width:180px;overflow-wrap:anywhere}
 .home-card:hover,.home-card:focus-visible{border-color:var(--fg);outline:none}
 .home-card strong{font-size:1rem}
 .home-card span{font-size:.85rem;color:var(--muted)}
+.scoreboard{display:flex;align-items:stretch;justify-content:center;gap:16px;margin:8px 0 4px;flex-wrap:wrap}
+.sb-team{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:200px;padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.sb-win{border-color:var(--w)}
+.sb-name{font-weight:600;font-size:1.05rem;text-decoration:none}
+.sb-score{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums}
+.sb-team:not(.sb-win) .sb-score{color:var(--muted)}
+.sb-dash{align-self:center;font-size:1.6rem;color:var(--muted)}
+.two-col.wide-cols{grid-template-columns:repeat(auto-fit,minmax(460px,1fr))}
+.breakdown{font-size:.8rem;white-space:normal}
+tr.bench-row td{opacity:.65}
+td a.score-win,td a.score-lose{text-decoration:none}
+td a.score-win:hover,td a.score-lose:hover{text-decoration:underline}

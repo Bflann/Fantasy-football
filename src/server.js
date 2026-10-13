@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { loadEnv } = require('./env');
 loadEnv();
-const { loadInput, loadProfiles, loadTeamSeasons, clearCache } = require('./league');
+const { loadInput, loadProfiles, loadTeamSeasons, loadMatches, clearCache } = require('./league');
+const { matchKey } = require('./matches');
 const analyses = require('./analyses');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -37,6 +38,11 @@ const server = http.createServer(async (req, res) => {
     if (t) {
       const page = (await loadTeamSeasons())[`${t[1]}/${t[2]}`];
       return page ? send(res, 200, page) : send(res, 404, { error: 'Unknown team season' });
+    }
+    const mt = url.pathname.match(/^\/api\/matches\/(\d{4})\/(\d+)\/([\w-]+)\/([\w-]+)$/);
+    if (mt) {
+      const page = (await loadMatches())[matchKey(mt[1], mt[2], mt[3], mt[4])];
+      return page ? send(res, 200, page) : send(res, 404, { error: 'No lineup data for this game (two-week playoff matchups have no single-week roster).' });
     }
     if (url.pathname === '/api/refresh') { clearCache(); return send(res, 200, { ok: true }); }
     const file = path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname);

@@ -135,6 +135,8 @@ async function fetchLineups(leagueId, year, creds, weeks) {
 }
 
 // ESPN lineup slot ids that are not the active starting lineup.
+const { label: statLabel, isBracket } = require('./statLabels');
+
 const BENCH_SLOT = 20;
 const IR_SLOT = 21;
 
@@ -162,6 +164,17 @@ function bestLineup(entries, slotCounts) {
 
 const optimalLineup = (entries, slotCounts) => bestLineup(entries, slotCounts).total;
 
+// Stat lines behind one player's week: [{ label, value, points }], non-zero only, biggest first.
+function breakdownOf(entry, week) {
+  const stats = (((entry.playerPoolEntry || {}).player || {}).stats || [])
+    .find((s) => s.scoringPeriodId === week && s.statSourceId === 0 && s.appliedStats);
+  if (!stats) return [];
+  return Object.entries(stats.appliedStats)
+    .filter(([, pts]) => Math.abs(pts) > 0.0001)
+    .map(([id, pts]) => ({ id: Number(id), label: statLabel(Number(id)), value: isBracket(Number(id)) ? null : (stats.stats || {})[id], points: Math.round(pts * 100) / 100 }))
+    .sort((a, b) => b.points - a.points);
+}
+
 // One record per team-week: points actually started vs. the best lineup that roster could have fielded.
 function normalizeLineups(year, weeks, drafted = new Map()) {
   if (!weeks.length) return [];
@@ -185,6 +198,7 @@ function normalizeLineups(year, weeks, drafted = new Map()) {
           eligible: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.eligibleSlots) || [],
           name: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.fullName) || 'Unknown',
           position: (e.playerPoolEntry && e.playerPoolEntry.player && POSITIONS[e.playerPoolEntry.player.defaultPositionId]) || '',
+          breakdown: breakdownOf(e, week),
         }));
         const started = entries.filter((e) => e.slot !== BENCH_SLOT && e.slot !== IR_SLOT);
         const actual = started.reduce((s, e) => s + e.points, 0);
@@ -223,6 +237,7 @@ function normalizeLineups(year, weeks, drafted = new Map()) {
           optimal: Math.round(optimal * 100) / 100,
           moves,
           positions,
+          roster: entries.map((e) => ({ playerId: e.playerId, player: e.name, position: e.position, slot: e.slot, points: Math.round(e.points * 100) / 100, breakdown: e.breakdown })),
           // Everyone on the roster who was not drafted by this team: waiver and free-agent adds.
           pickups: drafted.size
             ? entries

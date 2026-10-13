@@ -4,6 +4,7 @@ const LABEL = { W: 'Won', L: 'Lost', T: 'Tied' };
 const ownerSlug = (id) => String(id || '').replace(/[{}]/g, '').toLowerCase();
 const ownerHref = (slug) => `#owner/${slug}`;
 const teamHref = (slug, season) => `#team/${slug}/${season}`;
+const matchHref = (season, week, slugA, slugB) => `#match/${season}/${week}/${slugA}/${slugB}`;
 
 // Inline box-and-whisker plot on an axis shared by every row (col.axis) so rows compare directly.
 function boxPlot(box, { min, max }) {
@@ -154,6 +155,15 @@ function cell(col, row) {
       : col.key === 'winPct' ? `${(v * 100).toFixed(1)}%` : v;
     if (col.key === 'week' && row.playoff) td.textContent += ' (playoffs)';
   }
+  // Scores in a matchup block open that game's page.
+  if ((col.side === 'score-a' || col.side === 'score-b') && row.ownerId && row.opponentOwnerId && typeof row.season === 'number' && typeof row.week === 'number') {
+    const link = document.createElement('a');
+    link.href = matchHref(row.season, row.week, ownerSlug(row.ownerId), ownerSlug(row.opponentOwnerId));
+    link.textContent = td.textContent;
+    link.title = 'See the player-by-player breakdown';
+    td.textContent = '';
+    td.append(link);
+  }
   // In a matchup block the higher score is bold and the lower one muted, like a scoreboard.
   if ((col.side === 'score-a' || col.side === 'score-b') && typeof row.points === 'number' && typeof row.opponentPoints === 'number') {
     const mine = col.side === 'score-a' ? row.points : row.opponentPoints;
@@ -165,6 +175,10 @@ function cell(col, row) {
 
 // Served by the Node server (live ESPN data) or as static JSON on GitHub Pages.
 let staticMode = false;
+const matchUrl = (season, week, a, b) => {
+  const [lo, hi] = [a, b].sort();
+  return staticMode ? `data/matches/${season}-${week}-${lo}-${hi}.json` : `api/matches/${season}/${week}/${lo}/${hi}`;
+};
 const teamUrl = (slug, season) => (staticMode ? `data/teams/${slug}-${season}.json` : `api/teams/${slug}/${season}`);
 const ownerUrl = (slug) => (staticMode ? `data/owners/${slug}.json` : `api/owners/${slug}`);
 const apiUrl = (path) => (staticMode ? `data/${path || 'analyses'}.json` : `api/analyses${path ? '/' + path : ''}`);
@@ -355,6 +369,24 @@ async function showProfile(slug) {
   }
 }
 
+async function showMatch(season, week, a, b) {
+  showView('profile');
+  const root = $('profile');
+  root.innerHTML = '';
+  root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Loading… (builds from weekly rosters; the first load can take a few seconds)' }));
+  try {
+    const res = await fetch(matchUrl(season, week, a, b));
+    const p = await res.json();
+    if (!res.ok) throw new Error(p.error);
+    document.title = `Week ${p.week} ${p.season}: ${p.teams[0].team} vs ${p.teams[1].team} · Fantasy Football Analyzer`;
+    renderMatch(root, p, { team: teamHref });
+    window.scrollTo(0, 0);
+  } catch (e) {
+    root.innerHTML = '';
+    root.append(Object.assign(document.createElement('p'), { className: 'error', textContent: staticMode ? 'No lineup data for this game (two-week playoff matchups have no single-week roster).' : e.message }));
+  }
+}
+
 async function showTeamSeason(slug, season) {
   showView('profile');
   const root = $('profile');
@@ -365,7 +397,7 @@ async function showTeamSeason(slug, season) {
     const p = await res.json();
     if (!res.ok) throw new Error(p.error);
     document.title = `${p.team} ${p.season} · Fantasy Football Analyzer`;
-    renderTeamSeason(root, p, { team: teamHref, owner: ownerHref, slug: ownerSlug, radar: radarPlot, boxplot: boxPlot, strip: stripPlot });
+    renderTeamSeason(root, p, { team: teamHref, owner: ownerHref, slug: ownerSlug, match: matchHref, radar: radarPlot, boxplot: boxPlot, strip: stripPlot });
     window.scrollTo(0, 0);
   } catch (e) {
     root.innerHTML = '';
@@ -376,6 +408,8 @@ async function showTeamSeason(slug, season) {
 let analyses = [];
 let currentAnalysis = null;
 function route() {
+  const mm = location.hash.match(/^#match\/(\d{4})\/(\d+)\/([\w-]+)\/([\w-]+)$/);
+  if (mm) return showMatch(mm[1], mm[2], mm[3], mm[4]);
   const t = location.hash.match(/^#team\/([\w-]+)\/(\d{4})$/);
   if (t) return showTeamSeason(t[1], t[2]);
   const m = location.hash.match(/^#owner\/([\w-]+)$/);

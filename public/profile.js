@@ -65,6 +65,46 @@
     return svg;
   }
 
+  // Both rosters for one matchup, with each player's points and the stat lines behind them.
+  window.renderMatch = function (root, p, hrefs) {
+    root.innerHTML = '';
+    const [a, b] = p.teams;
+    const week = `Week ${p.week}${p.playoff ? ' (playoffs)' : ''}`;
+    const side = (t, other) => h('div', { className: `sb-team${p.winner === t.slug ? ' sb-win' : ''}` },
+      h('a', { href: hrefs.team(t.slug, p.season), className: 'sb-name', textContent: t.team }),
+      h('span', { className: 'muted', textContent: t.owner }),
+      h('span', { className: 'sb-score', textContent: pts(t.points) }));
+    root.append(
+      h('a', { href: '#', className: 'back', textContent: '← Back', onclick: (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } } }),
+      h('p', { className: 'muted', textContent: `${p.season} · ${week}` }),
+      h('div', { className: 'scoreboard' }, side(a, b), h('span', { className: 'sb-dash', textContent: '–' }), side(b, a)),
+    );
+
+    const roster = (t) => {
+      const panel = h('div', { className: 'panel' }, h('h3', { textContent: t.team }));
+      const rows = t.roster.map((r) => ({ ...r, cls: r.started ? '' : 'bench' }));
+      const t2 = table([
+        { label: 'Slot', render: (r) => r.slot },
+        { label: 'Player', render: (r) => h('span', { className: r.started ? '' : 'muted' }, h('strong', { textContent: r.player }), ` ${r.position}`) },
+        { label: 'Pts', num: true, render: (r) => h('strong', { className: r.started ? '' : 'muted', textContent: pts(r.points) }) },
+        { label: 'How they scored', render: (r) => h('span', { className: 'muted breakdown' }, r.breakdown.length
+          ? r.breakdown.map((x) => `${x.label}${x.value === null || x.value === undefined ? '' : ` ${x.value}`} (${x.points > 0 ? '+' : ''}${x.points})`).join(' · ')
+          : 'No scoring') },
+      ], rows);
+      // Dim bench rows.
+      t2.querySelectorAll && t2.querySelectorAll('tbody tr').forEach((tr, i) => { if (rows[i] && !rows[i].started) tr.classList.add('bench-row'); });
+      panel.append(t2);
+      const left = Math.round((t.optimal - t.points) * 100) / 100;
+      panel.append(h('p', { className: 'muted legend-note', textContent: `Started ${pts(t.points)} · best possible lineup ${pts(t.optimal)}${left > 0 ? ` (${pts(left)} left on the bench)` : ' (perfect lineup)'}` }));
+      const swaps = t.moves.filter((m) => m.out);
+      if (swaps.length) {
+        panel.append(h('p', { className: 'legend-note', textContent: `Better lineup: ${swaps.map((m) => `${m.in.player} (${m.in.points}) for ${m.out.player} (${m.out.points})`).join('; ')}` }));
+      }
+      return panel;
+    };
+    root.append(h('div', { className: 'two-col wide-cols' }, roster(a), roster(b)));
+  };
+
   window.renderTeamSeason = function (root, p, hrefs) {
     root.innerHTML = '';
     const s = p.summary;
@@ -98,8 +138,8 @@
       table([
         { label: 'Week', render: (w) => `${w.week}${w.playoff ? ' (playoffs)' : ''}` },
         { label: 'Team', side: 'team-a', render: () => p.team },
-        { label: 'Score', num: true, side: 'score-a', render: (w) => h('span', { className: w.points > w.opponentPoints ? 'score-win' : 'score-lose', textContent: pts(w.points) }) },
-        { label: 'Opp.', num: true, side: 'score-b', render: (w) => h('span', { className: w.opponentPoints > w.points ? 'score-win' : 'score-lose', textContent: pts(w.opponentPoints) }) },
+        { label: 'Score', num: true, side: 'score-a', render: (w) => h('a', { href: hrefs.match(p.season, w.week, p.slug, hrefs.slug(w.opponentOwnerId)), className: w.points > w.opponentPoints ? 'score-win' : 'score-lose', textContent: pts(w.points) }) },
+        { label: 'Opp.', num: true, side: 'score-b', render: (w) => h('a', { href: hrefs.match(p.season, w.week, p.slug, hrefs.slug(w.opponentOwnerId)), className: w.opponentPoints > w.points ? 'score-win' : 'score-lose', textContent: pts(w.opponentPoints) }) },
         { label: 'Opponent', side: 'team-b', render: (w) => (w.opponentOwnerId ? h('a', { href: hrefs.team(hrefs.slug(w.opponentOwnerId), p.season), textContent: w.opponent }) : w.opponent) },
         { label: 'Result', render: (w) => h('span', { className: `badge ${w.result}`, textContent: RESULT[w.result] }) },
         { label: 'League avg', num: true, render: (w) => (w.leagueAvg === null ? '–' : pts(w.leagueAvg)) },
