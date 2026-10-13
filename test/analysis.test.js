@@ -10,6 +10,7 @@ const parallel = require('../src/analyses/parallelUniverse');
 const heartbreak = require('../src/analyses/heartbreak');
 const seasonArc = require('../src/analyses/seasonArc');
 const fingerprint = require('../src/analyses/fingerprint');
+const clutch = require('../src/analyses/clutch');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -221,4 +222,26 @@ test('fingerprint: shares sum to 100 and compare against the league', () => {
   assert.strictEqual(columns.find((c) => c.key === 'qbShare').league, 44.6);
   assert.strictEqual(q.radar.values[0], 1.34); // 60% / 44.6%
   assert.match(q.quirk, /^Heavy on QB/);
+});
+
+test('clutch: divides multi-week playoff scores by the weeks they cover', () => {
+  const reg = (week, points) => ({ season: 2023, week, playoff: false, periods: 1, ownerId: '{A}', owner: 'A', team: 'A', points, result: 'W' });
+  const games = [
+    reg(1, 100), reg(2, 100), reg(3, 100), reg(4, 100),
+    // A two-week semifinal: 240 points over 2 scoring weeks = 120 per week. Plus a one-week final of 90.
+    { season: 2023, week: 15, playoff: true, tier: 'WINNERS_BRACKET', periods: 2, ownerId: '{A}', owner: 'A', team: 'A', points: 240, result: 'W' },
+    { season: 2023, week: 16, playoff: true, tier: 'WINNERS_BRACKET', periods: 1, ownerId: '{A}', owner: 'A', team: 'A', points: 90, result: 'L' },
+    // Consolation games must not count.
+    { season: 2023, week: 15, playoff: true, tier: 'LOSERS_CONSOLATION_LADDER', periods: 2, ownerId: '{A}', owner: 'A', team: 'A', points: 400, result: 'W' },
+    reg(1, 10),
+  ];
+  const { rows } = clutch.run(games);
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].weeks, 3); // 2 + 1, consolation ignored
+  assert.strictEqual(rows[0].playoffAvg, 110); // (240 + 90) / 3
+  assert.strictEqual(rows[0].record, '1-1');
+  assert.strictEqual(rows[0].sample, 'Small sample');
+  // Baseline is the owner's regular-season average that year: (4*100 + 10)/5 = 82.
+  assert.strictEqual(rows[0].regularAvg, 82);
+  assert.strictEqual(rows[0].diff, 28);
 });
