@@ -9,6 +9,7 @@ const headToHead = require('../src/analyses/headToHead');
 const parallel = require('../src/analyses/parallelUniverse');
 const heartbreak = require('../src/analyses/heartbreak');
 const seasonArc = require('../src/analyses/seasonArc');
+const fingerprint = require('../src/analyses/fingerprint');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -201,4 +202,23 @@ test('season arc: names rising, fading and wire-to-wire seasons', () => {
 test('season arc: too-short seasons are left out', () => {
   const games = [1, 2, 3].map((w) => ({ season: 2026, week: w, playoff: false, team: 'T', ownerId: 'T', owner: 'T', points: 100, result: 'W' }));
   assert.strictEqual(seasonArc.run(games).rows.length, 0);
+});
+
+test('fingerprint: shares sum to 100 and compare against the league', () => {
+  const l = (team, week, positions) => ({ season: 2024, week, playoff: false, team, owner: team, ownerId: team, positions });
+  const weeks = [1, 2, 3, 4, 5, 6];
+  const lineups = [
+    ...weeks.map((w) => l('QBHeavy', w, { QB: 60, RB: 20, WR: 20 })),
+    ...weeks.map((w) => l('Balanced', w, { QB: 20, RB: 40, WR: 40 })),
+    l('Short', 1, { QB: 100 }), // under the minimum games: left out
+  ];
+  const { rows, columns } = fingerprint.run(lineups);
+  const q = rows.find((r) => r.team === 'QBHeavy');
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(q.qbShare, 60);
+  assert.strictEqual(q.rbShare + q.wrShare + q.teShare + q.kShare + q.dstShare, 40);
+  // League QB share is (60+20)/200 = 40%, so QBHeavy sits at 1.5x.
+  assert.strictEqual(q.radar.values[0], 1.5);
+  assert.strictEqual(columns.find((c) => c.key === 'qbShare').league, 40);
+  assert.match(q.quirk, /^Heavy on QB/);
 });

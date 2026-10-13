@@ -197,6 +197,12 @@ function normalizeLineups(year, weeks) {
           in: { player: e.name, position: e.position, points: Math.round(e.points * 100) / 100 },
           out: outs[i] ? { player: outs[i].name, position: outs[i].position, points: Math.round(outs[i].points * 100) / 100 } : null,
         }));
+        // Started points by the player's real position (a FLEX slot's points count for the RB/WR/TE in it).
+        const positions = {};
+        for (const e of started) {
+          if (!e.position) continue;
+          positions[e.position] = Math.round(((positions[e.position] || 0) + e.points) * 100) / 100;
+        }
         const other = side === g.home ? g.away : g.home;
         const mine = side === g.home ? 'HOME' : 'AWAY';
         const ot = teams.get(other.teamId);
@@ -215,6 +221,7 @@ function normalizeLineups(year, weeks) {
           actual: Math.round(actual * 100) / 100,
           optimal: Math.round(optimal * 100) / 100,
           moves,
+          positions,
           topBench: bench ? { player: bench.name, points: Math.round(bench.points * 100) / 100 } : null,
         });
       }

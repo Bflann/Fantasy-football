@@ -82,6 +82,38 @@ function sparkline({ points, avg, weeks }) {
   return svg;
 }
 
+// Radar of position shares relative to the league (1.0 = league average, drawn as the dashed ring).
+function radarPlot({ labels, values, shares, league }) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const S = 96, C = S / 2, R = 30, MAX = 1.8;
+  const n = labels.length;
+  const pt = (i, v) => {
+    const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+    const r = (Math.min(v, MAX) / MAX) * R;
+    return [C + Math.cos(a) * r, C + Math.sin(a) * r];
+  };
+  const mk = (tag, attrs) => {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const ring = (v) => labels.map((_, i) => pt(i, v).map((c) => c.toFixed(1)).join(',')).join(' ');
+  const svg = mk('svg', { viewBox: `0 0 ${S} ${S}`, class: 'radar', role: 'img' });
+  svg.append(mk('polygon', { points: ring(MAX), class: 'rd-frame' }), mk('polygon', { points: ring(1), class: 'rd-league' }));
+  labels.forEach((_, i) => { const [x, y] = pt(i, MAX); svg.append(mk('line', { x1: C, y1: C, x2: x.toFixed(1), y2: y.toFixed(1), class: 'rd-frame' })); });
+  svg.append(mk('polygon', { points: values.map((v, i) => pt(i, v).map((c) => c.toFixed(1)).join(',')).join(' '), class: 'rd-shape' }));
+  labels.forEach((label, i) => {
+    const [x, y] = pt(i, MAX * 1.22);
+    const t = mk('text', { x: x.toFixed(1), y: (y + 2.5).toFixed(1), class: 'rd-label', 'text-anchor': 'middle' });
+    t.textContent = label;
+    svg.append(t);
+  });
+  const title = mk('title', {});
+  title.textContent = labels.map((l, i) => `${l}: ${shares[i]}% (league ${league[i]}%)`).join('\n');
+  svg.append(title);
+  return svg;
+}
+
 function cell(col, row) {
   const td = document.createElement('td');
   if (col.type === 'num') td.className = 'num';
@@ -90,6 +122,13 @@ function cell(col, row) {
     td.append(boxPlot(v, col.axis));
   } else if (col.type === 'strip') {
     td.append(stripPlot(v, col.axis));
+  } else if (col.type === 'radar') {
+    td.append(radarPlot(v));
+  } else if (col.type === 'share') {
+    td.className = 'num';
+    td.append(`${v.toFixed(1)}%`);
+    const d = v - col.league;
+    td.append(Object.assign(document.createElement('span'), { className: `diff ${d > 0.05 ? 'up' : d < -0.05 ? 'down' : ''}`, textContent: `${d > 0 ? '+' : ''}${d.toFixed(1)}` }));
   } else if (col.type === 'sparkline') {
     td.append(sparkline(v));
   } else if (col.type === 'result') {
@@ -208,7 +247,7 @@ function render() {
     const th = el('th', { className: c.type === 'num' ? 'num sortable' : 'sortable', tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
     th.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
     const toggle = () => {
-      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' || c.type === 'sparkline' ? 'desc' : 'asc';
+      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' || c.type === 'sparkline' || c.type === 'radar' || c.type === 'share' ? 'desc' : 'asc';
       const next = !active ? first : sort.dir === 'asc' ? 'desc' : 'asc';
       view.sort = { key: sortKey, dir: next };
       render();
