@@ -21,6 +21,7 @@ function summarize(pairs) {
     repeat: top.length ? r1((top.filter((p) => p.nextTop).length / top.length) * 100) : 0,
     expectedRepeat: top.length ? r1(mean(top.map((p) => p.baseTop)) * 100) : 0,
     winPct: top.length ? r1((top.filter((p) => p.won).length / top.length) * 100) : 0,
+    expectedWinPct: top.length ? r1(mean(top.map((p) => p.baseWin)) * 100) : 0,
   };
 }
 
@@ -58,6 +59,7 @@ module.exports = {
       gs.sort((a, b) => a.week - b.week);
       const rels = gs.map((g) => info.get(`${g.season}|${g.week}|${g.ownerId || g.team}`).rel);
       const total = rels.reduce((s, v) => s + v, 0);
+      const wins = gs.filter((g) => g.result === 'W').length + gs.filter((g) => g.result === 'T').length / 2;
       const topWeeks = gs.filter((g) => info.get(`${g.season}|${g.week}|${g.ownerId || g.team}`).rank <= TOP).length;
       for (let i = 0; i < gs.length - 1; i++) {
         const cur = gs[i];
@@ -69,7 +71,10 @@ module.exports = {
         const baseline = (total - rels[i + 1]) / (gs.length - 1); // own season norm without the target week
         // How often this team finishes top-3 in the season's other weeks: what "repeating" would look like with no streakiness.
         const baseTop = (topWeeks - (ni.rank <= TOP ? 1 : 0)) / (gs.length - 1);
-        const pair = { prev, delta: rels[i + 1] - baseline, nextTop: ni.rank <= TOP, baseTop, won: nxt.result === 'W' };
+        // The team's win rate in its other games: good teams win more no matter what, so compare against this.
+        const nextWin = nxt.result === 'W' ? 1 : nxt.result === 'T' ? 0.5 : 0;
+        const baseWin = (wins - nextWin) / (gs.length - 1);
+        const pair = { prev, delta: rels[i + 1] - baseline, nextTop: ni.rank <= TOP, baseTop, won: nextWin === 1, baseWin };
         everyone.push(pair);
         if (cur.ownerId) {
           if (!byOwner.has(cur.ownerId)) byOwner.set(cur.ownerId, { owner: cur.owner, team: cur.team, season: cur.season, pairs: [] });
@@ -96,6 +101,7 @@ module.exports = {
         { key: 'repeat', label: `Top-${TOP} again %`, type: 'num' },
         { key: 'expectedRepeat', label: 'Expected %', type: 'num' },
         { key: 'winPct', label: 'Won next game %', type: 'num' },
+        { key: 'expectedWinPct', label: 'Their usual win %', type: 'num' },
       ],
       rows,
       summary: `Whole league: ${league.afterTopAvg >= 0 ? '+' : ''}${league.afterTopAvg} points vs their own average the week after a top-${TOP} week (${league.afterTop} weeks), ${league.afterBottomAvg >= 0 ? '+' : ''}${league.afterBottomAvg} after a bottom-${TOP} week (${league.afterBottom} weeks).`,    };
