@@ -79,7 +79,8 @@
       card('Record', s.record, `Playoffs: ${s.playoffs}`),
       card('Regular-season finish', s.finish, `${s.games} games`),
       card('Avg score', pts(s.avgPoints), `High ${pts(s.highScore)} · Low ${pts(s.lowScore)}`),
-      card('Points for', pts(s.pointsFor), `Against ${pts(s.pointsAgainst)}`),
+      card('Points for', pts(s.pointsFor), `${pts(s.pointsFor / s.games)} per game`),
+      card('Points against', pts(s.pointsAgainst), `${pts(s.pointsAgainst / s.games)} per game`),
     ];
     if (p.efficiency) cards.push(card('Lineup efficiency', `${p.efficiency.efficiency}%`, `${pts(p.efficiency.left)} points left on the bench`));
     if (p.universes) cards.push(card('Wins in other schedules', String(p.universes.avgWins), `Actual: ${p.universes.actual} wins`));
