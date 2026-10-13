@@ -1,9 +1,11 @@
-const { currentSeason, fetchSeason, fetchDraft, normalizeSeason, normalizeDraft } = require('./espn');
+const { buildProfiles } = require('./owners');
+const { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups } = require('./espn');
 
 const TTL = 10 * 60 * 1000;
 let cache = null;
 let draftCache = null;
-const clearCache = () => { cache = null; draftCache = null; };
+let lineupCache = null;
+const clearCache = () => { cache = null; draftCache = null; lineupCache = null; };
 const getSeasons = () => cache && cache.seasons;
 
 async function loadGames() {
@@ -48,12 +50,46 @@ async function loadDraft() {
   return picks;
 }
 
+// Weekly lineups for every season/week that has completed games.
+async function loadLineups() {
+  if (lineupCache && Date.now() - lineupCache.at < TTL) return lineupCache.records;
+  const games = await loadGames();
+  const creds = { espnS2: process.env.ESPN_S2, swid: process.env.SWID };
+  const weeksBySeason = new Map();
+  for (const g of games) {
+    if (!weeksBySeason.has(g.season)) weeksBySeason.set(g.season, new Set());
+    weeksBySeason.get(g.season).add(g.week);
+  }
+  // Only keep lineups whose started points match the official game score; multi-week playoff
+  // matchups score over several periods, so a single week's roster would not add up.
+  const official = new Map(games.map((g) => [`${g.season}|${g.week}|${g.team}`, g.points]));
+  const records = [];
+  for (const [season, weeks] of weeksBySeason) {
+    const raw = await fetchLineups(process.env.LEAGUE_ID, season, creds, [...weeks].sort((a, b) => a - b));
+    for (const l of normalizeLineups(season, raw)) {
+      const pts = official.get(`${l.season}|${l.week}|${l.team}`);
+      if (pts !== undefined && Math.abs(pts - l.actual) <= 0.05) records.push(l);
+    }
+  }
+  if (!records.length) throw Object.assign(new Error('No lineup data found for that league.'), { code: 'EMPTY' });
+  lineupCache = { at: Date.now(), records };
+  return records;
+}
+
 // Loads whichever dataset an analysis declares (`needs: 'draft'`, default team-week games).
 async function loadInput(analysis) {
-  const draft = analysis.needs === 'draft';
-  const input = draft ? await loadDraft() : await loadGames();
-  const seasons = draft ? [...new Set(input.map((r) => r.season))].sort((a, b) => b - a) : getSeasons();
+  const loaders = { draft: loadDraft, lineups: loadLineups };
+  const load = loaders[analysis.needs];
+  const input = load ? await load() : await loadGames();
+  const seasons = load ? [...new Set(input.map((r) => r.season))].sort((a, b) => b - a) : getSeasons();
   return { input, seasons };
 }
 
-module.exports = { loadGames, loadDraft, loadInput, clearCache, getSeasons };
+// Owner profiles keyed by slug. A missing draft just leaves the draft section empty.
+async function loadProfiles() {
+  const games = await loadGames();
+  const picks = await loadDraft().catch(() => []);
+  return buildProfiles(games, picks);
+}
+
+module.exports = { loadGames, loadDraft, loadLineups, loadInput, loadProfiles, clearCache, getSeasons };

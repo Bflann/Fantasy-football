@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadEnv } = require('../src/env');
 loadEnv();
-const { loadGames, loadInput } = require('../src/league');
+const { loadGames, loadInput, loadProfiles } = require('../src/league');
 const analyses = require('../src/analyses');
 
 (async () => {
@@ -19,5 +19,8 @@ const analyses = require('../src/analyses');
     const { input, seasons } = await loadInput(a);
     write(`${a.id}.json`, { ...a.run(input), seasons });
   }
-  console.log(`Built ${analyses.list.length} analyses from ${games.length} team-weeks into ${out}`);
+  const profiles = await loadProfiles();
+  fs.mkdirSync(path.join(out, 'data', 'owners'));
+  for (const [id, p] of Object.entries(profiles)) fs.writeFileSync(path.join(out, 'data', 'owners', `${id}.json`), JSON.stringify(p));
+  console.log(`Built ${analyses.list.length} analyses and ${Object.keys(profiles).length} owner pages from ${games.length} team-weeks into ${out}`);
 })().catch((e) => { console.error(e.message); process.exit(1); });

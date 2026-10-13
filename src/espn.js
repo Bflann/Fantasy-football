@@ -106,6 +106,91 @@ function normalizeSeason(year, raw) {
   return out;
 }
 
+// Weekly rosters (who started, who sat, and every player's points that week) for the given weeks.
+async function fetchLineups(leagueId, year, creds, weeks) {
+  if (year < 2018) return [];
+  const base = `${BASE}/seasons/${year}/segments/0/leagues/${leagueId}`;
+  const views = 'view=mBoxscore&view=mMatchupScore&view=mSettings&view=mTeam';
+  const out = [];
+  const queue = [...weeks];
+  const worker = async () => {
+    for (let w = queue.shift(); w !== undefined; w = queue.shift()) {
+      out.push({ week: w, raw: await request(`${base}?${views}&scoringPeriodId=${w}`, creds) });
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  return out.sort((a, b) => a.week - b.week);
+}
+
+// ESPN lineup slot ids that are not the active starting lineup.
+const BENCH_SLOT = 20;
+const IR_SLOT = 21;
+
+// Best possible score from a roster: fill the most restrictive slots first, then flex-style slots.
+function optimalLineup(entries, slotCounts) {
+  const pool = entries.filter((e) => e.slot !== IR_SLOT);
+  const slots = [];
+  for (const [id, n] of Object.entries(slotCounts)) {
+    const slot = Number(id);
+    if (slot === BENCH_SLOT || slot === IR_SLOT) continue;
+    for (let i = 0; i < n; i++) slots.push(slot);
+  }
+  const eligibleCount = (slot) => pool.filter((e) => e.eligible.includes(slot)).length;
+  slots.sort((a, b) => eligibleCount(a) - eligibleCount(b));
+  const used = new Set();
+  let total = 0;
+  for (const slot of slots) {
+    let best = null;
+    for (const e of pool) if (!used.has(e) && e.eligible.includes(slot) && (!best || e.points > best.points)) best = e;
+    if (best) { used.add(best); total += best.points; }
+  }
+  return total;
+}
+
+// One record per team-week: points actually started vs. the best lineup that roster could have fielded.
+function normalizeLineups(year, weeks) {
+  if (!weeks.length) return [];
+  const first = weeks[0].raw;
+  const teams = new Map((first.teams || []).map((t) => [t.id, t]));
+  const ownerOf = ownerLookup(first);
+  const slotCounts = first.settings.rosterSettings.lineupSlotCounts;
+  const out = [];
+  for (const { week, raw } of weeks) {
+    for (const g of raw.schedule || []) {
+      if (g.matchupPeriodId !== week || !g.home || !g.away) continue;
+      if (!g.winner || g.winner === 'UNDECIDED') continue;
+      const isPlayoff = !!g.playoffTierType && g.playoffTierType !== 'NONE';
+      for (const side of [g.home, g.away]) {
+        const roster = side.rosterForCurrentScoringPeriod;
+        if (!roster || !roster.entries || !roster.entries.length) continue;
+        const entries = roster.entries.map((e) => ({
+          slot: e.lineupSlotId,
+          points: (e.playerPoolEntry && e.playerPoolEntry.appliedStatTotal) || 0,
+          eligible: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.eligibleSlots) || [],
+          name: (e.playerPoolEntry && e.playerPoolEntry.player && e.playerPoolEntry.player.fullName) || 'Unknown',
+        }));
+        const started = entries.filter((e) => e.slot !== BENCH_SLOT && e.slot !== IR_SLOT);
+        const actual = started.reduce((s, e) => s + e.points, 0);
+        const optimal = Math.max(optimalLineup(entries, slotCounts), actual);
+        const bench = entries.filter((e) => e.slot === BENCH_SLOT).sort((a, b) => b.points - a.points)[0];
+        const t = teams.get(side.teamId);
+        out.push({
+          season: year,
+          week,
+          playoff: isPlayoff,
+          team: teamName(t),
+          teamId: side.teamId,
+          ...ownerOf(t),
+          actual: Math.round(actual * 100) / 100,
+          optimal: Math.round(optimal * 100) / 100,
+          topBench: bench ? { player: bench.name, points: Math.round(bench.points * 100) / 100 } : null,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 const POSITIONS = { 1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'D/ST' };
 
 // One record per draft pick, with the player's full-season fantasy points under the league's scoring.
@@ -136,4 +221,4 @@ function normalizeDraft(year, { league, players }) {
   });
 }
 
-module.exports = { currentSeason, fetchSeason, fetchDraft, normalizeSeason, normalizeDraft };
+module.exports = { currentSeason, fetchSeason, fetchDraft, fetchLineups, normalizeSeason, normalizeDraft, normalizeLineups, optimalLineup };

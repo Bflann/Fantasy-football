@@ -1,17 +1,53 @@
 const $ = (id) => document.getElementById(id);
 const LABEL = { W: 'Won', L: 'Lost', T: 'Tied' };
+// Owner ids are ESPN account GUIDs like "{ABC-…}"; pages use them lowercase and unbraced.
+const ownerSlug = (id) => String(id || '').replace(/[{}]/g, '').toLowerCase();
+const ownerHref = (slug) => `#owner/${slug}`;
+
+// Inline box-and-whisker plot on an axis shared by every row (col.axis) so rows compare directly.
+function boxPlot(box, { min, max }) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 240, H = 26, PAD = 6, MID = H / 2;
+  const x = (v) => PAD + ((v - min) / (max - min || 1)) * (W - 2 * PAD);
+  const mk = (tag, attrs) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'boxplot', role: 'img' });
+  svg.setAttribute('aria-label', `Scores from ${box.min} to ${box.max}, median ${box.median}, middle half ${box.q1} to ${box.q3}`);
+  svg.append(mk('title', {}));
+  svg.firstChild.textContent = `min ${box.min} · Q1 ${box.q1} · median ${box.median} · Q3 ${box.q3} · max ${box.max}`;
+  svg.append(
+    mk('line', { x1: x(box.whiskerLow), x2: x(box.q1), y1: MID, y2: MID, class: 'bp-line' }),
+    mk('line', { x1: x(box.q3), x2: x(box.whiskerHigh), y1: MID, y2: MID, class: 'bp-line' }),
+    mk('line', { x1: x(box.whiskerLow), x2: x(box.whiskerLow), y1: MID - 5, y2: MID + 5, class: 'bp-line' }),
+    mk('line', { x1: x(box.whiskerHigh), x2: x(box.whiskerHigh), y1: MID - 5, y2: MID + 5, class: 'bp-line' }),
+    mk('rect', { x: x(box.q1), y: MID - 8, width: Math.max(x(box.q3) - x(box.q1), 1), height: 16, class: 'bp-box' }),
+    mk('line', { x1: x(box.median), x2: x(box.median), y1: MID - 8, y2: MID + 8, class: 'bp-median' }),
+  );
+  for (const o of box.outliers) svg.append(mk('circle', { cx: x(o), cy: MID, r: 2.5, class: 'bp-out' }));
+  return svg;
+}
 
 function cell(col, row) {
   const td = document.createElement('td');
   if (col.type === 'num') td.className = 'num';
   const v = row[col.key];
-  if (col.type === 'result') {
+  if (col.type === 'boxplot') {
+    td.append(boxPlot(v, col.axis));
+  } else if (col.type === 'result') {
     const b = document.createElement('span');
     b.className = `badge ${v}`;
     b.textContent = LABEL[v] || v;
     td.append(b);
+  } else if ((col.type === 'owner' || col.key === 'team') && row.ownerId) {
+    td.append(Object.assign(document.createElement('a'), { href: ownerHref(ownerSlug(row.ownerId)), textContent: v }));
+  } else if (col.key === 'opponent' && row.opponentOwnerId) {
+    td.append(Object.assign(document.createElement('a'), { href: ownerHref(ownerSlug(row.opponentOwnerId)), textContent: v }));
   } else {
-    td.textContent = col.key === 'points' || col.key === 'opponentPoints' ? v.toFixed(2) : v;
+    td.textContent = col.key === 'points' || col.key === 'opponentPoints' ? v.toFixed(2)
+      : col.key === 'winPct' ? `${(v * 100).toFixed(1)}%` : v;
     if (col.key === 'week' && row.playoff) td.textContent += ' (playoffs)';
   }
   return td;
@@ -19,6 +55,7 @@ function cell(col, row) {
 
 // Served by the Node server (live ESPN data) or as static JSON on GitHub Pages.
 let staticMode = false;
+const ownerUrl = (slug) => (staticMode ? `data/owners/${slug}.json` : `api/owners/${slug}`);
 const apiUrl = (path) => (staticMode ? `data/${path || 'analyses'}.json` : `api/analyses${path ? '/' + path : ''}`);
 
 // Table state for the current analysis: sorting + filtering happen client-side.
@@ -102,13 +139,14 @@ function render() {
   table.innerHTML = '';
   const head = table.createTHead().insertRow();
   for (const c of data.columns) {
-    const active = sort && sort.key === c.key;
+    const sortKey = c.sortKey || c.key;
+    const active = sort && sort.key === sortKey;
     const th = el('th', { className: c.type === 'num' ? 'num sortable' : 'sortable', tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
     th.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
     const toggle = () => {
-      const first = c.type === 'num' || c.type === 'result' ? 'desc' : 'asc';
+      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' ? 'desc' : 'asc';
       const next = !active ? first : sort.dir === 'asc' ? 'desc' : 'asc';
-      view.sort = { key: c.key, dir: next };
+      view.sort = { key: sortKey, dir: next };
       render();
     };
     th.onclick = toggle;
@@ -122,6 +160,40 @@ function render() {
   }
   if (!rows.length) body.insertRow().insertCell().textContent = 'No rows match these filters.';
 }
+
+function showView(name) {
+  $('analysis').hidden = name !== 'analysis';
+  $('profile').hidden = name !== 'profile';
+  if (name === 'profile') document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+}
+
+async function showProfile(slug) {
+  showView('profile');
+  const root = $('profile');
+  root.innerHTML = '';
+  root.append(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Loading…' }));
+  try {
+    const res = await fetch(ownerUrl(slug));
+    const p = await res.json();
+    if (!res.ok) throw new Error(p.error);
+    document.title = `${p.owner} · Fantasy Football Analyzer`;
+    renderProfile(root, p, ownerHref);
+    window.scrollTo(0, 0);
+  } catch (e) {
+    root.innerHTML = '';
+    root.append(Object.assign(document.createElement('p'), { className: 'error', textContent: e.message }));
+  }
+}
+
+let analyses = [];
+function route() {
+  const m = location.hash.match(/^#owner\/([\w-]+)$/);
+  if (m) return showProfile(m[1]);
+  document.title = 'Fantasy Football Analyzer';
+  showView('analysis');
+  if (!view && analyses.length) show(analyses[0]);
+}
+window.addEventListener('hashchange', route);
 
 async function show(a) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.id === a.id));
@@ -158,12 +230,13 @@ $('filters').addEventListener('submit', (e) => e.preventDefault());
     res = await fetch(apiUrl());
   }
   const list = await res.json();
+  analyses = list;
   for (const a of list) {
     const b = document.createElement('button');
     b.textContent = a.title;
     b.dataset.id = a.id;
-    b.onclick = () => show(a);
+    b.onclick = () => { showView('analysis'); if (location.hash) history.pushState(null, '', location.pathname + location.search); show(a); };
     $('tabs').append(b);
   }
-  show(list[0]);
+  if (location.hash.startsWith('#owner/')) route(); else show(list[0]);
 })();
