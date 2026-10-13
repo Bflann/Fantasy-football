@@ -3,8 +3,9 @@ module.exports = {
   id: 'top-weeks',
   title: 'Top scoring weeks',
   description: 'Every team’s best single-week scores across all seasons, and whether the big number actually won.',
-  run(games, { limit = 50 } = {}) {
-    const rows = [...games].sort((a, b) => b.points - a.points).slice(0, limit);
+  run(games, { limit } = {}) {
+    // No limit by default: return every team-week; the UI sorts and filters.
+    const rows = [...games].sort((a, b) => b.points - a.points).slice(0, limit || undefined);
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
@@ -24,5 +25,5 @@ module.exports = {
 
 function summarize(rows) {
   const lost = rows.filter((r) => r.result === 'L').length;
-  return rows.length ? `${lost} of the top ${rows.length} scores still lost.` : '';
+  return rows.length ? `${lost} of ${rows.length} team-weeks were losses.` : '';
 }

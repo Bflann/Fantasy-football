@@ -17,3 +17,9 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .badge{display:inline-block;min-width:3.2em;text-align:center;padding:2px 8px;border-radius:999px;font-weight:600;font-size:.8rem;border:1px solid currentColor}
 .W{color:var(--w)}.L{color:var(--l)}.T{color:var(--t)}
 .error{color:var(--l)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.filters input,.filters select,.filters button{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:inherit;font:inherit}
+.filters input{flex:1 1 220px}
+.filters button{cursor:pointer}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover,th.sortable:focus-visible{color:var(--fg);outline:none}
