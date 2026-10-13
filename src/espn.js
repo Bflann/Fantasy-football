@@ -102,6 +102,8 @@ function normalizeSeason(year, raw) {
         season: year,
         week: g.matchupPeriodId,
         playoff: isPlayoff,
+        tier: g.playoffTierType && g.playoffTierType !== 'NONE' ? g.playoffTierType : '',
+        periods: Object.keys(g[me].pointsByScoringPeriod || {}).length || 1,
         team: teamName(t),
         teamId: g[me].teamId,
         ...ownerOf(t),

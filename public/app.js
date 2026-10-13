@@ -30,12 +30,39 @@ function boxPlot(box, { min, max }) {
   return svg;
 }
 
+// Dots on a 0..max axis, one per alternate universe; duplicates stack. The real outcome is ringed.
+function stripPlot({ values, actual }, { min, max }) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 220, H = 30, PAD = 8, R = 3.2;
+  const x = (v) => PAD + ((v - min) / (max - min || 1)) * (W - 2 * PAD);
+  const mk = (tag, attrs) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, class: 'strip', role: 'img' });
+  svg.append(mk('line', { x1: PAD, x2: W - PAD, y1: H - 7, y2: H - 7, class: 'bp-line' }));
+  const stack = new Map();
+  for (const v of values) {
+    const n = stack.get(v) || 0;
+    stack.set(v, n + 1);
+    svg.append(mk('circle', { cx: x(v), cy: H - 7 - R - 1 - n * (R * 2 + 0.5), r: R, class: 'st-dot' }));
+  }
+  svg.append(mk('circle', { cx: x(actual), cy: H - 7, r: 4.5, class: 'st-actual' }));
+  const title = mk('title', {});
+  title.textContent = `Actual: ${actual} wins · other universes: ${[...values].sort((a, b) => a - b).join(', ')}`;
+  svg.append(title);
+  return svg;
+}
+
 function cell(col, row) {
   const td = document.createElement('td');
   if (col.type === 'num') td.className = 'num';
   const v = row[col.key];
   if (col.type === 'boxplot') {
     td.append(boxPlot(v, col.axis));
+  } else if (col.type === 'strip') {
+    td.append(stripPlot(v, col.axis));
   } else if (col.type === 'result') {
     const b = document.createElement('span');
     b.className = `badge ${v}`;
@@ -144,7 +171,7 @@ function render() {
     const th = el('th', { className: c.type === 'num' ? 'num sortable' : 'sortable', tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
     th.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
     const toggle = () => {
-      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' ? 'desc' : 'asc';
+      const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' ? 'desc' : 'asc';
       const next = !active ? first : sort.dir === 'asc' ? 'desc' : 'asc';
       view.sort = { key: sortKey, dir: next };
       render();

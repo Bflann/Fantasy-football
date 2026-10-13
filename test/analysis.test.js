@@ -6,6 +6,7 @@ const draft = require('../src/analyses/draft');
 const consistency = require('../src/analyses/consistency');
 const efficiency = require('../src/analyses/efficiency');
 const headToHead = require('../src/analyses/headToHead');
+const parallel = require('../src/analyses/parallelUniverse');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -127,4 +128,30 @@ test('head to head: mirrored records, per-season and playoff views', () => {
   // Same first name + last initial gets lengthened so labels stay distinguishable.
   assert.deepStrictEqual(matrix.owners.map((o) => o.short).sort(), ['Pat Le.', 'Pat Lo.']);
   assert.strictEqual(new Set(matrix.owners.map((o) => o.short)).size, 2);
+});
+
+test('parallel universes: replays each team against every other schedule', () => {
+  // Three owners, three weeks, everyone plays everyone once-ish. A is strongest, C weakest.
+  const g = (week, ownerId, points, oppId, oppPoints) =>
+    ({ season: 2024, week, playoff: false, team: ownerId, owner: ownerId, ownerId, opponentOwnerId: oppId, points, opponentPoints: oppPoints,
+      result: points > oppPoints ? 'W' : points < oppPoints ? 'L' : 'T' });
+  const games = [
+    // wk1: A(100) v B(80); C has a bye-like game vs nobody tracked -> give C a game vs D(not present) skipped via missing opp owner
+    g(1, 'A', 100, 'B', 80), g(1, 'B', 80, 'A', 100),
+    g(2, 'A', 100, 'C', 60), g(2, 'C', 60, 'A', 100),
+    g(3, 'B', 80, 'C', 60), g(3, 'C', 60, 'B', 80),
+    g(3, 'A', 100, 'Z', 90),
+    g(1, 'C', 60, 'Y', 70), g(2, 'B', 80, 'Y', 70),
+  ];
+  const { rows } = parallel.run(games);
+  const c = rows.find((r) => r.team === 'C');
+  const a = rows.find((r) => r.team === 'A');
+  // A wins every game in every universe (100 beats everything), so luck is 0 and all universes equal.
+  assert.strictEqual(a.avgWins, a.wins);
+  assert.strictEqual(a.luck, 0);
+  assert.strictEqual(a.best, a.worst);
+  // C never beats anyone: zero wins everywhere.
+  assert.strictEqual(c.universes.actual, 0);
+  assert.ok(c.universes.values.every((w) => w === 0));
+  assert.ok(rows.every((r) => r.universes.values.length === 2)); // three owners -> two alternates
 });
