@@ -5,6 +5,7 @@ const topWeeks = require('../src/analyses/topWeeks');
 const draft = require('../src/analyses/draft');
 const consistency = require('../src/analyses/consistency');
 const efficiency = require('../src/analyses/efficiency');
+const headToHead = require('../src/analyses/headToHead');
 
 const raw = {
   teams: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }, { id: 3, name: 'Gamma' }],
@@ -105,4 +106,25 @@ test('efficiency: ratio of started to optimal points, regular season only', () =
   assert.strictEqual(rows[0].left, 20);
   assert.strictEqual(rows[0].perfect, 1);
   assert.match(rows[0].worstWeek, /^Wk 2: −20/);
+});
+
+test('head to head: mirrored records, per-season and playoff views', () => {
+  const g = (season, week, playoff, ownerId, owner, oppId, points, oppPoints, result) =>
+    ({ season, week, playoff, team: owner, owner, ownerId, opponentOwnerId: oppId, points, opponentPoints: oppPoints, result });
+  const games = [
+    g(2023, 1, false, '{A}', 'Pat Lee', '{B}', 100, 90, 'W'), g(2023, 1, false, '{B}', 'Pat Long', '{A}', 90, 100, 'L'),
+    g(2024, 1, false, '{A}', 'Pat Lee', '{B}', 80, 95, 'L'), g(2024, 1, false, '{B}', 'Pat Long', '{A}', 95, 80, 'W'),
+    g(2024, 15, true, '{A}', 'Pat Lee', '{B}', 120, 110, 'W'), g(2024, 15, true, '{B}', 'Pat Long', '{A}', 110, 120, 'L'),
+  ];
+  const { matrix } = headToHead.run(games);
+  const v = matrix.views;
+  assert.deepStrictEqual([v['all:all']['{A}']['{B}'].w, v['all:all']['{A}']['{B}'].l], [2, 1]);
+  assert.deepStrictEqual([v['all:all']['{B}']['{A}'].w, v['all:all']['{B}']['{A}'].l], [1, 2]); // mirror image
+  assert.strictEqual(v['2024:regular']['{A}']['{B}'].l, 1);
+  assert.strictEqual(v['2024:playoffs']['{A}']['{B}'].w, 1);
+  assert.strictEqual(v['2023:playoffs'], undefined);
+  assert.deepStrictEqual(matrix.seasons, [2024, 2023]);
+  // Same first name + last initial gets lengthened so labels stay distinguishable.
+  assert.deepStrictEqual(matrix.owners.map((o) => o.short).sort(), ['Pat Le.', 'Pat Lo.']);
+  assert.strictEqual(new Set(matrix.owners.map((o) => o.short)).size, 2);
 });

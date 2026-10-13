@@ -202,6 +202,7 @@ async function show(a) {
   $('table').innerHTML = '';
   $('count').textContent = '';
   $('filters').hidden = true;
+  $('matrix').hidden = true;
   $('status').className = 'muted';
   $('status').textContent = 'Loading from ESPN… (first load can take a few seconds)';
   try {
@@ -210,6 +211,12 @@ async function show(a) {
     if (!res.ok) throw new Error(data.error);
     $('status').textContent = `Seasons: ${data.seasons.slice().sort().join(', ')}`;
     $('summary').textContent = data.summary || '';
+    if (data.matrix) {
+      view = null;
+      renderMatrix($('matrix'), data.matrix, ownerHref);
+      $('matrix').hidden = false;
+      return;
+    }
     view = { data, sort: null };
     buildFilters(data);
     render();

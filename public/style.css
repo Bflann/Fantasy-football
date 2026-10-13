@@ -42,3 +42,23 @@ nav button{margin-bottom:4px}
 .bp-box{fill:color-mix(in srgb,var(--w) 25%,transparent);stroke:var(--w);stroke-width:1.5}
 .bp-median{stroke:var(--fg);stroke-width:2}
 .bp-out{fill:none;stroke:var(--l);stroke-width:1.5}
+.mx-controls{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+.mx-control{display:flex;flex-direction:column;gap:2px;font-size:.75rem;text-transform:uppercase;color:var(--muted)}
+.mx-control select{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);font:inherit;text-transform:none}
+.mx-help{margin:0 0 12px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+table.mx{width:auto;min-width:100%}
+.mx th,.mx td{white-space:normal;text-align:center;padding:6px 8px}
+.mx-corner{text-align:left!important;min-width:150px}
+.mx-col{min-width:74px;font-size:.75rem;text-transform:none;line-height:1.2}
+.mx-col a{text-decoration:none}
+.mx-row{text-align:left!important;white-space:nowrap!important;position:sticky;left:0;background:var(--card);border-right:1px solid var(--line);font-weight:600;text-transform:none;font-size:.9rem;color:var(--fg)}
+.mx-row a{text-decoration:none}
+.mx-team{display:block;font-weight:400;font-size:.72rem;color:var(--muted);max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.mx-main{font-weight:600;font-variant-numeric:tabular-nums}
+.mx-sub{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.mx-total{border-left:2px solid var(--line)}
+.mx-self{background:repeating-linear-gradient(45deg,transparent 0 6px,var(--line) 6px 7px);color:var(--muted)}
+.mx-none{color:var(--muted)}
+.mx-cell:hover{outline:2px solid var(--fg);outline-offset:-2px}
+.mx-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:.8rem}
+.mx-ramp{width:140px;height:10px;border-radius:5px;border:1px solid var(--line);background:linear-gradient(90deg,color-mix(in srgb,var(--l) 55%,transparent),transparent 50%,color-mix(in srgb,var(--w) 55%,transparent))}

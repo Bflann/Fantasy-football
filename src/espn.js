@@ -67,7 +67,9 @@ function ownerLookup(raw) {
     const id = ((t && t.owners) || [])[0] || '';
     const m = owners.get(id);
     const name = m ? [m.firstName, m.lastName].filter(Boolean).join(' ') || m.displayName || '' : '';
-    return { ownerId: id, owner: name };
+    // Some accounts were typed in all lowercase ("malcolm jackson"); tidy those for display.
+    const tidy = name === name.toLowerCase() ? name.replace(/\b[a-z]/g, (c) => c.toUpperCase()) : name;
+    return { ownerId: id, owner: tidy };
   };
 }
 
