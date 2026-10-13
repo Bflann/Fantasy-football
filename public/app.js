@@ -292,7 +292,7 @@ const HOME_GROUPS = [
   ['League history', ['top-weeks', 'standings', 'head-to-head']],
   ['Drafts and rosters', ['draft', 'efficiency', 'heartbreak', 'fingerprint']],
   ['Schedule and luck', ['parallel-universe']],
-  ['Trends and streaks', ['consistency', 'season-arc', 'clutch', 'hot-hand']],
+  ['Trends and streaks', ['consistency', 'season-arc', 'clutch']],
 ];
 
 const HOME_BLURBS = {
@@ -307,7 +307,6 @@ const HOME_BLURBS = {
   consistency: 'Weekly score spread per team, with box plots.',
   'season-arc': 'The shape of each season, week by week.',
   clutch: 'Playoff scoring vs the same owner’s regular season.',
-  'hot-hand': 'What happens the week after a big (or awful) week.',
 };
 
 function showHome() {
