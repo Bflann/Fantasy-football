@@ -76,7 +76,6 @@ module.exports = {
         diff: r1(diff),
         rating: r2(diff / leagueSd),
         bySeason: runText,
-        sample: weeks >= 4 ? '' : 'Small sample',
       });
     }
     all.sort((a, b) => b.rating - a.rating || b.weeks - a.weeks);
@@ -95,13 +94,10 @@ module.exports = {
         { key: 'regularAvg', label: 'Regular avg / wk', type: 'num' },
         { key: 'record', label: 'Playoff record' },
         { key: 'weeks', label: 'Weeks', type: 'num' },
-        { key: 'bySeason', label: 'By season (pts/wk vs reg. season)' },
-        { key: 'sample', label: '' },
+        { key: 'bySeason', label: 'By season (pts/wk vs reg. season)', wrap: true },
       ],
       rows,
-      summary: rows.length
-        ? `Most clutch: ${best.owner} (${best.diff >= 0 ? '+' : ''}${best.diff} points per week in the playoffs, over ${best.weeks} weeks). Least: ${worst.owner} (${worst.diff} per week, ${worst.weeks} weeks). Playoff samples are small, so treat ratings built on a few weeks as a hint, not a verdict.`
-        : '',
+      summary: '',
     };
   },
 };

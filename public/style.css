@@ -74,7 +74,7 @@ tbody tr:hover>td,tbody tr:hover>th{box-shadow:inset 0 0 0 9999px color-mix(in s
 .sp-line{fill:none;stroke:var(--fg);stroke-width:1.8;stroke-linejoin:round}
 .sp-avg{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:2 3}
 .sp-end{fill:var(--fg)}
-.radar{display:block;width:88px;height:88px;overflow:visible}
+.radar{display:block;width:80px;height:80px;overflow:visible}
 .rd-frame{fill:none;stroke:var(--line);stroke-width:1}
 .rd-league{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 .rd-shape{fill:color-mix(in srgb,var(--w) 30%,transparent);stroke:var(--w);stroke-width:1.5}
@@ -82,3 +82,16 @@ tbody tr:hover>td,tbody tr:hover>th{box-shadow:inset 0 0 0 9999px color-mix(in s
 .diff{display:block;font-size:.72rem;color:var(--muted)}
 .diff.up{color:var(--w)}
 .diff.down{color:var(--l)}
+/* Scoreboard-style matchup block: Team  score – score  Opponent. Scores stay in their own sortable columns. */
+td.side-team-a,th.side-team-a{text-align:right}
+td.side-team-b,th.side-team-b{text-align:left}
+td.side-score-a,th.side-score-a{text-align:right;padding-right:4px;padding-left:0}
+td.side-score-b,th.side-score-b{text-align:left;padding-left:4px;padding-right:0}
+td.side-score-a::after{content:'\2013';color:var(--muted);margin-left:8px}
+.score-win{font-weight:700}
+.score-lose{color:var(--muted)}
+td.side-team-a{font-weight:500}
+td.wrap{min-width:140px;max-width:220px;font-size:.85rem}
+td.side-team-a,td.side-team-b{max-width:200px;overflow-wrap:anywhere}
+td.wrap{max-width:200px}
+td.team-name{max-width:180px;overflow-wrap:anywhere}

@@ -18,13 +18,14 @@
     if (!rows.length) return h('p', { className: 'muted', textContent: empty });
     const t = h('table');
     const head = t.createTHead().insertRow();
-    for (const c of columns) head.append(h('th', { className: c.num ? 'num' : '', textContent: c.label }));
+    for (const c of columns) head.append(h('th', { className: `${c.num ? 'num' : ''}${c.side ? ` side-${c.side}` : ''}`.trim(), textContent: c.label }));
     const body = t.createTBody();
     for (const r of rows) {
       const tr = body.insertRow();
       for (const c of columns) {
         const td = tr.insertCell();
         if (c.num) td.className = 'num';
+        if (c.side) td.classList.add(`side-${c.side}`);
         const content = c.render ? c.render(r) : r[c.key];
         if (content instanceof Node) td.append(content); else td.textContent = content;
       }
@@ -78,10 +79,11 @@
 
       h('h3', { textContent: 'Top scoring weeks' }),
       table([
-        { label: 'Score', num: true, render: (g) => pts(g.points) },
         { label: 'When', render: gameLabel },
-        { label: 'Opponent', key: 'opponent' },
-        { label: 'Opp. score', num: true, render: (g) => pts(g.opponentPoints) },
+        { label: 'Team', side: 'team-a', render: (g) => g.team },
+        { label: 'Score', num: true, side: 'score-a', render: (g) => h('span', { className: g.points > g.opponentPoints ? 'score-win' : 'score-lose', textContent: pts(g.points) }) },
+        { label: 'Opp.', num: true, side: 'score-b', render: (g) => h('span', { className: g.opponentPoints > g.points ? 'score-win' : 'score-lose', textContent: pts(g.opponentPoints) }) },
+        { label: 'Opponent', side: 'team-b', key: 'opponent' },
         { label: 'Result', render: (g) => h('span', { className: `badge ${g.result}`, textContent: RESULT[g.result] }) },
       ], p.bestWeeks),
 

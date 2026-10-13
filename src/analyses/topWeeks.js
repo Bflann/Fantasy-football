@@ -9,12 +9,13 @@ module.exports = {
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
-        { key: 'points', label: 'Score', type: 'num' },
-        { key: 'team', label: 'Team' },
         { key: 'season', label: 'Season', type: 'num' },
         { key: 'week', label: 'Week', type: 'num' },
-        { key: 'opponent', label: 'Opponent' },
-        { key: 'opponentPoints', label: 'Opp. score', type: 'num' },
+        // Matchup block: Team  score – score  Opponent, with both scores still sortable on their own.
+        { key: 'team', label: 'Team', side: 'team-a' },
+        { key: 'points', label: 'Score', type: 'num', side: 'score-a' },
+        { key: 'opponentPoints', label: 'Opp.', type: 'num', side: 'score-b' },
+        { key: 'opponent', label: 'Opponent', side: 'team-b' },
         { key: 'result', label: 'Result', type: 'result' },
       ],
       rows: rows.map((g, i) => ({ rank: i + 1, ...g })),

@@ -65,8 +65,6 @@ module.exports = {
     const rows = all.slice(0, limit || undefined).map((r, i) => ({ rank: i + 1, ...r }));
     const maxGames = Math.max(1, ...rows.map((r) => r.games));
 
-    const top = rows[0];
-    const lucky = rows[rows.length - 1];
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
@@ -81,9 +79,7 @@ module.exports = {
         { key: 'worst', label: 'Worst', type: 'num' },
       ],
       rows,
-      summary: rows.length
-        ? `Most hurt by schedule: ${top.team} (${top.season}) went ${top.record} but averages ${top.avgWins} wins across universes. Luckiest: ${lucky.team} (${lucky.season}), ${lucky.record} vs ${lucky.avgWins} typical.`
-        : '',
+      summary: '',
     };
   },
 };

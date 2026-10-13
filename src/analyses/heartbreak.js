@@ -47,26 +47,21 @@ module.exports = {
 
     const flips = all.filter((r) => r.regret > 0).length;
     const hairs = all.filter((r) => r.margin < CLOSE).length;
-    const worst = rows[0];
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
-        { key: 'team', label: 'Team' },
         { key: 'season', label: 'Season', type: 'num' },
         { key: 'week', label: 'Week', type: 'num' },
-        { key: 'points', label: 'Score', type: 'num' },
-        { key: 'opponent', label: 'Lost to' },
-        { key: 'opponentPoints', label: 'Opp. score', type: 'num' },
+        { key: 'team', label: 'Team', side: 'team-a' },
+        { key: 'points', label: 'Score', type: 'num', side: 'score-a' },
+        { key: 'opponentPoints', label: 'Opp.', type: 'num', side: 'score-b' },
+        { key: 'opponent', label: 'Lost to', side: 'team-b' },
         { key: 'margin', label: 'Lost by', type: 'num' },
-        { key: 'best', label: 'Best lineup', type: 'num' },
         { key: 'regret', label: 'Should have won by', type: 'num' },
-        { key: 'kind', label: 'Type' },
-        { key: 'swaps', label: 'The swaps that won it' },
+        { key: 'swaps', label: 'The swaps that won it', wrap: true },
       ],
       rows,
-      summary: rows.length
-        ? `${losses.length} losses: ${flips} could have been wins with a better lineup, ${hairs} were decided by under ${CLOSE} points. Biggest what-if: ${worst.team} (${worst.season} wk ${worst.week}) lost ${worst.points}–${worst.opponentPoints} while their best lineup scored ${worst.best}.`
-        : '',
+      summary: rows.length ? `${losses.length} losses: ${flips} where a better lineup would have won, ${hairs} decided by under ${CLOSE} points.` : '',
     };
   },
 };

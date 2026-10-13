@@ -36,9 +36,6 @@ module.exports = {
       if (!sum) continue;
       const share = Object.fromEntries(POSITIONS.map((p) => [p, (totals[p] / sum) * 100]));
       const ratio = POSITIONS.map((p) => share[p] / league[p]);
-      // Most distinctive: the position that deviates furthest from the league, in either direction.
-      let top = 0;
-      ratio.forEach((r, i) => { if (Math.abs(r - 1) > Math.abs(ratio[top] - 1)) top = i; });
       const row = {
         season: ls[0].season,
         team: ls[0].team,
@@ -46,15 +43,12 @@ module.exports = {
         ownerId: ls[0].ownerId,
         games: ls.length,
         points: r1(sum),
-        quirk: `${ratio[top] >= 1 ? 'Heavy' : 'Light'} on ${POSITIONS[top]} (${r1(share[POSITIONS[top]])}% vs ${r1(league[POSITIONS[top]])}%)`,
-        deviation: r2(Math.abs(ratio[top] - 1)),
         radar: { labels: POSITIONS, values: ratio.map(r2), shares: POSITIONS.map((p) => r1(share[p])), league: POSITIONS.map((p) => r1(league[p])) },
       };
       for (const p of POSITIONS) row[`${KEY[p]}Share`] = r1(share[p]);
       all.push(row);
     }
-    // Most distinctive fingerprints first.
-    all.sort((a, b) => b.deviation - a.deviation);
+    all.sort((a, b) => b.season - a.season || a.team.localeCompare(b.team));
     const rows = all.slice(0, limit || undefined).map((r, i) => ({ rank: i + 1, ...r }));
 
     return {
@@ -62,14 +56,11 @@ module.exports = {
         { key: 'rank', label: '#', type: 'num' },
         { key: 'team', label: 'Team' },
         { key: 'season', label: 'Season', type: 'num' },
-        { key: 'radar', label: 'Fingerprint', type: 'radar', sortKey: 'deviation' },
-        { key: 'quirk', label: 'Most distinctive' },
+        { key: 'radar', label: 'Fingerprint', type: 'radar' },
         ...POSITIONS.map((p) => ({ key: `${KEY[p]}Share`, label: p, type: 'share', league: r1(league[p]) })),
       ],
       rows,
-      summary: rows.length
-        ? `Most distinctive: ${rows[0].team} (${rows[0].season}): ${rows[0].quirk}. League average split: ${POSITIONS.map((p) => `${p} ${r1(league[p])}%`).join(', ')}.`
-        : '',
+      summary: rows.length ? `League average split: ${POSITIONS.map((p) => `${p} ${r1(league[p])}%`).join(', ')}.` : '',
     };
   },
 };

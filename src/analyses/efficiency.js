@@ -54,7 +54,7 @@ module.exports = {
         { key: 'optimal', label: 'Optimal', type: 'num' },
         { key: 'perfect', label: 'Perfect weeks', type: 'num' },
         { key: 'games', label: 'Games', type: 'num' },
-        { key: 'worstWeek', label: 'Worst week' },
+        { key: 'worstWeek', label: 'Worst week', wrap: true },
       ],
       rows,
       summary: rows.length

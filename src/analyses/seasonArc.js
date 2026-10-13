@@ -18,18 +18,6 @@ const ARCS = {
   metronome: 'Metronome',
   steady: 'Business as usual',
 };
-const BLURB = {
-  [ARCS.wire]: 'Beat the league average in at least 80% of weeks.',
-  [ARCS.bottom]: 'Below the league average in at least 80% of weeks.',
-  [ARCS.late]: 'Second half clearly better than the first.',
-  [ARCS.fade]: 'First half clearly better than the second.',
-  [ARCS.peak]: 'Best stretch came in the middle of the season.',
-  [ARCS.swoon]: 'Worst stretch came in the middle of the season.',
-  [ARCS.coaster]: 'Much more up-and-down than the typical team.',
-  [ARCS.metronome]: 'Much steadier than the typical team.',
-  [ARCS.steady]: 'No strong shape either way.',
-};
-
 // `rel` is points minus that week's league average; `typical` is the league-wide spread of rel.
 function classify(rel, typical, medianSd) {
   const n = rel.length;
@@ -102,15 +90,11 @@ module.exports = {
         secondHalf: r1(second),
         change: r1(second - first),
         shape: { points: gs.map((g) => r1(g.points)), avg: gs.map((g) => r1(avgFor(g))), weeks: gs.map((g) => g.week) },
-        blurb: BLURB[arc],
       };
     });
     all.sort((a, b) => b.change - a.change);
     const rows = all.slice(0, limit || undefined).map((r, i) => ({ rank: i + 1, ...r }));
 
-    const counts = {};
-    for (const r of rows) counts[r.arc] = (counts[r.arc] || 0) + 1;
-    const common = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
     return {
       columns: [
         { key: 'rank', label: '#', type: 'num' },
@@ -124,9 +108,7 @@ module.exports = {
         { key: 'record', label: 'Record' },
       ],
       rows,
-      summary: rows.length
-        ? `Biggest riser: ${rows[0].team} (${rows[0].season}, scored ${rows[0].change} more points per week in the second half). Biggest fader: ${rows[rows.length - 1].team} (${rows[rows.length - 1].season}, ${Math.abs(rows[rows.length - 1].change)} fewer points per week in the second half). Most common arc: ${common[0]} (${common[1]} of ${rows.length}).`
-        : '',
+      summary: '',
     };
   },
 };

@@ -222,7 +222,6 @@ test('fingerprint: shares sum to 100 and compare against the league', () => {
   // League QB share counts every game, including the short season: (360+120+100)/1300 = 44.6%.
   assert.strictEqual(columns.find((c) => c.key === 'qbShare').league, 44.6);
   assert.strictEqual(q.radar.values[0], 1.34); // 60% / 44.6%
-  assert.match(q.quirk, /^Heavy on QB/);
 });
 
 test('clutch: divides multi-week playoff scores by the weeks they cover', () => {
@@ -241,7 +240,6 @@ test('clutch: divides multi-week playoff scores by the weeks they cover', () => 
   assert.strictEqual(rows[0].weeks, 3); // 2 + 1, consolation ignored
   assert.strictEqual(rows[0].playoffAvg, 110); // (240 + 90) / 3
   assert.strictEqual(rows[0].record, '1-1');
-  assert.strictEqual(rows[0].sample, 'Small sample');
   // Baseline is the owner's regular-season average that year: (4*100 + 10)/5 = 82.
   assert.strictEqual(rows[0].regularAvg, 82);
   assert.strictEqual(rows[0].diff, 28);
@@ -260,7 +258,6 @@ test('hot hand: finds the effect when top weeks are followed by better weeks', (
   const { rows } = hotHand.run(games);
   assert.strictEqual(rows[0].scope, 'Whole league');
   assert.ok(rows[0].afterTop > 0 && rows[0].afterBottom > 0);
-  assert.ok(['Hot hand looks real', 'Looks like noise', 'Reverses (cools off)', 'Not enough data'].includes(rows[0].verdict));
   const h = rows.find((r) => r.ownerId === 'T0');
   assert.ok(h.afterTop >= 3);
   // After H's 200-point weeks it scores 140, below its own average: cooling off, not heating up.

@@ -117,6 +117,9 @@ function radarPlot({ labels, values, shares, league }) {
 function cell(col, row) {
   const td = document.createElement('td');
   if (col.type === 'num') td.className = 'num';
+  if (col.side) td.classList.add(`side-${col.side}`);
+  if (col.wrap) td.classList.add('wrap');
+  if (col.key === 'team') td.classList.add('team-name');
   const v = row[col.key];
   if (col.type === 'boxplot') {
     td.append(boxPlot(v, col.axis));
@@ -144,6 +147,12 @@ function cell(col, row) {
     td.textContent = col.key === 'points' || col.key === 'opponentPoints' ? v.toFixed(2)
       : col.key === 'winPct' ? `${(v * 100).toFixed(1)}%` : v;
     if (col.key === 'week' && row.playoff) td.textContent += ' (playoffs)';
+  }
+  // In a matchup block the higher score is bold and the lower one muted, like a scoreboard.
+  if ((col.side === 'score-a' || col.side === 'score-b') && typeof row.points === 'number' && typeof row.opponentPoints === 'number') {
+    const mine = col.side === 'score-a' ? row.points : row.opponentPoints;
+    const theirs = col.side === 'score-a' ? row.opponentPoints : row.points;
+    td.classList.add(mine > theirs ? 'score-win' : mine < theirs ? 'score-lose' : 'score-tie');
   }
   return td;
 }
@@ -244,7 +253,7 @@ function render() {
   for (const c of data.columns) {
     const sortKey = c.sortKey || c.key;
     const active = sort && sort.key === sortKey;
-    const th = el('th', { className: c.type === 'num' ? 'num sortable' : 'sortable', tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
+    const th = el('th', { className: `${c.type === 'num' ? 'num ' : ''}sortable${c.side ? ` side-${c.side}` : ''}`, tabIndex: 0, textContent: c.label + (active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '') });
     th.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
     const toggle = () => {
       const first = c.type === 'num' || c.type === 'result' || c.type === 'boxplot' || c.type === 'strip' || c.type === 'sparkline' || c.type === 'radar' || c.type === 'share' ? 'desc' : 'asc';

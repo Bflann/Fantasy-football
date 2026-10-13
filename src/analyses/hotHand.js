@@ -3,40 +3,31 @@
 // own season average (excluding the week being predicted), so good teams don't get credit for being good.
 // Regular season only; only back-to-back weeks count.
 const TOP = 3;
-const MIN_SAMPLE = 8; // fewer top or bottom weeks than this and the verdict is flagged as a small sample
 const r1 = (n) => Math.round(n * 10) / 10;
 const r2 = (n) => Math.round(n * 100) / 100;
 const mean = (a) => a.reduce((s, v) => s + v, 0) / (a.length || 1);
-const variance = (a) => { const m = mean(a); return a.length > 1 ? a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1) : 0; };
 
 function summarize(pairs) {
   const top = pairs.filter((p) => p.prev === 'top');
   const bottom = pairs.filter((p) => p.prev === 'bottom');
   const d = (g) => g.map((p) => p.delta);
   const diff = top.length && bottom.length ? mean(d(top)) - mean(d(bottom)) : null;
-  const se = top.length > 1 && bottom.length > 1 ? Math.sqrt(variance(d(top)) / top.length + variance(d(bottom)) / bottom.length) : null;
-  const z = diff !== null && se ? diff / se : null;
-  let verdict = 'Not enough data';
-  if (z !== null) verdict = z >= 1.64 ? 'Hot hand looks real' : z <= -1.64 ? 'Reverses (cools off)' : 'Looks like noise';
-  if (z !== null && (top.length < MIN_SAMPLE || bottom.length < MIN_SAMPLE)) verdict = `Small sample (${verdict.toLowerCase()})`;
   return {
     afterTop: top.length,
     afterTopAvg: top.length ? r1(mean(d(top))) : 0,
     afterBottom: bottom.length,
     afterBottomAvg: bottom.length ? r1(mean(d(bottom))) : 0,
     effect: diff === null ? 0 : r1(diff),
-    z: z === null ? 0 : r2(z),
     repeat: top.length ? r1((top.filter((p) => p.nextTop).length / top.length) * 100) : 0,
     expectedRepeat: top.length ? r1(mean(top.map((p) => p.baseTop)) * 100) : 0,
     winPct: top.length ? r1((top.filter((p) => p.won).length / top.length) * 100) : 0,
-    verdict,
   };
 }
 
 module.exports = {
   id: 'hot-hand',
   title: 'Weekly hot hand',
-  description: `Does a big week predict another one? After a top-${TOP} week, how a team scores the following week compared with its own average, against how it scores after a bottom-${TOP} week. "Noise" means the gap is within what random luck produces.`,
+  description: `How teams score the week after a top-${TOP} week, and the week after a bottom-${TOP} week, compared with their own season average.`,
   run(games) {
     const reg = games.filter((g) => !g.playoff);
     const weeks = new Map();
@@ -102,14 +93,11 @@ module.exports = {
         { key: 'afterBottom', label: `After bottom-${TOP}`, type: 'num' },
         { key: 'afterBottomAvg', label: 'Next week vs own avg', type: 'num' },
         { key: 'effect', label: 'Hot-hand effect', type: 'num' },
-        { key: 'z', label: 'z-score', type: 'num' },
         { key: 'repeat', label: `Top-${TOP} again %`, type: 'num' },
         { key: 'expectedRepeat', label: 'Expected %', type: 'num' },
         { key: 'winPct', label: 'Won next game %', type: 'num' },
-        { key: 'verdict', label: 'Verdict' },
       ],
       rows,
-      summary: `League-wide: after a top-${TOP} week teams scored ${league.afterTopAvg >= 0 ? '+' : ''}${league.afterTopAvg} points vs their own norm the next week (n=${league.afterTop}), after a bottom-${TOP} week ${league.afterBottomAvg >= 0 ? '+' : ''}${league.afterBottomAvg} (n=${league.afterBottom}). ${league.verdict}. They landed in the top ${TOP} again ${league.repeat}% of the time, vs ${league.expectedRepeat}% expected from how often those same teams finish top-${TOP} anyway.`,
-    };
+      summary: `Whole league: ${league.afterTopAvg >= 0 ? '+' : ''}${league.afterTopAvg} points vs their own average the week after a top-${TOP} week (${league.afterTop} weeks), ${league.afterBottomAvg >= 0 ? '+' : ''}${league.afterBottomAvg} after a bottom-${TOP} week (${league.afterBottom} weeks).`,    };
   },
 };
